@@ -16,30 +16,20 @@ interface PDFViewerProps {
 }
 
 export function PDFViewer({ pdfUrl, currentPage, onPageChange: _onPageChange, onTotalPagesChange }: PDFViewerProps) {
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<{ url: string; message: string } | null>(null);
   const [pageWidth, setPageWidth] = useState(800);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     onTotalPagesChange(numPages);
-    setIsLoading(false);
     setError(null);
   };
 
   const handleDocumentLoadError = (err: unknown) => {
     console.error('PDF load error:', err);
     const message = err instanceof Error ? err.message : 'Unknown error';
-    setError(`Failed to load PDF: ${message}`);
-    setIsLoading(false);
+    setError({ url: pdfUrl ?? '', message: `Failed to load PDF: ${message}` });
   };
-
-  useEffect(() => {
-    if (pdfUrl) {
-      setIsLoading(true);
-      setError(null);
-    }
-  }, [pdfUrl]);
 
   useEffect(() => {
     const updateWidth = () => {
@@ -59,23 +49,24 @@ export function PDFViewer({ pdfUrl, currentPage, onPageChange: _onPageChange, on
     return null;
   }
 
-  if (error) {
+  if (error && error.url === pdfUrl) {
     return (
       <div className="bg-red-50 border border-red-300 rounded-lg p-4 text-red-700">
         <p className="font-semibold">Error loading PDF</p>
-        <p className="text-sm">{error}</p>
+        <p className="text-sm">{error.message}</p>
       </div>
     );
   }
 
   return (
     <div ref={containerRef} className="w-full h-full bg-gray-50 overflow-auto flex items-center justify-center p-2">
-      {isLoading && <p className="text-center text-gray-500">Loading PDF...</p>}
       {pdfUrl && (
         <Document
+          key={pdfUrl}
           file={pdfUrl}
           onLoadSuccess={handleDocumentLoadSuccess}
           onLoadError={handleDocumentLoadError}
+          loading={<p className="text-center text-gray-500">Loading PDF...</p>}
         >
           <Page
             pageNumber={currentPage}
