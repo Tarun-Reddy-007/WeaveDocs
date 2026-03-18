@@ -369,7 +369,6 @@ export default function ProductCatalogsPage() {
 
   // Render the hierarchy tree from flat data
   const renderHierarchy = (parentPath: string = 'root', depth: number = 0): React.ReactNode => {
-    const isExpanded = expandedPaths.has(parentPath);
     const items = getOrderedItems(parentPath, pageAssignments, groupMetadata);
     
     return (

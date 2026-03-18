@@ -53,8 +53,6 @@ export default function PreviewPage() {
   const params = useParams();
   const { pdfUrl, pageAssignments, groupMetadata, pageTitles } = useHierarchy();
   
-  const pathSegments = (params.path as string[]) || [];
-  
   const [currentPageNum, setCurrentPageNum] = useState(1);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['root']));
   const [pageRange, setPageRange] = useState<PageRange | null>(null);
@@ -63,6 +61,7 @@ export default function PreviewPage() {
   useEffect(() => {
     if (Object.keys(pageAssignments).length === 0) return;
 
+    const pathSegments = (params.path as string[]) || [];
     const reconstructedPath = pathSegments.length > 0 
       ? pathSegments.join('/') 
       : 'root';
@@ -80,7 +79,7 @@ export default function PreviewPage() {
       setCurrentPageNum(1);
       setPageRange({ start: 1, end: 1, title: 'Cover' });
     }
-  }, [pageAssignments, pathSegments, groupMetadata]);
+  }, [pageAssignments, params.path, groupMetadata]);
 
   const handlePathClick = (path: string) => {
     const pages = getPagesInPath(path, pageAssignments);
@@ -98,7 +97,6 @@ export default function PreviewPage() {
   const renderHierarchy = (parentPath: string = 'root', depth: number = 0) => {
     const childPaths = getChildPaths(parentPath, groupMetadata);
     const pages = getPagesInPath(parentPath, pageAssignments);
-    const isExpanded = expandedPaths.has(parentPath);
 
     const items: Array<{ type: 'page' | 'group'; pageNum?: number; path?: string; minPage?: number }> = [];
 

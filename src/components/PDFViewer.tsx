@@ -32,8 +32,8 @@ export function PDFViewer({ pdfUrl, currentPage, onTotalPagesChange }: PDFViewer
     setIsLoading(false);
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    setIsLoading(true);
     setError(null);
   }, [pdfUrl]);
 
@@ -99,22 +99,21 @@ export function PDFThumbnail({ pdfUrl, pageNum, isActive, title, onTitleChange, 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [thumbWidth, setThumbWidth] = useState<number>(0);
 
-  if (!pdfUrl) {
-    return null;
-  }
-
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    setThumbWidth(el.clientWidth);
+    if (!containerRef.current) return;
+    setThumbWidth(containerRef.current.clientWidth);
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setThumbWidth(Math.floor(entry.contentRect.width));
       }
     });
-    ro.observe(el);
+    ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
+
+  if (!pdfUrl) {
+    return null;
+  }
 
   // Compute a width for the Page canvas that fits exactly inside the thumbnail container
   const pageRenderWidth = thumbWidth > 0 ? Math.max(60, thumbWidth) : 120;

@@ -56,7 +56,6 @@ export function HierarchyProvider({ children }: { children: ReactNode }) {
         }
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setHierarchyData = (data: {
