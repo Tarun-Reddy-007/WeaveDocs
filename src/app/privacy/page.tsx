@@ -10,7 +10,7 @@ export default function PrivacyPage() {
               Introduction
             </h2>
             <p>
-              At WeaveDocs, we're committed to protecting your privacy. This Privacy Policy 
+              At WeaveDocs, we&apos;re committed to protecting your privacy. This Privacy Policy 
               explains how we collect, use, and safeguard your information.
             </p>
           </section>

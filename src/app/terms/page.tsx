@@ -30,7 +30,7 @@ export default function TermsPage() {
               <li>Use the materials for any commercial purpose</li>
               <li>Attempt to decompile or reverse engineer any software contained</li>
               <li>Remove any copyright or other proprietary notations</li>
-              <li>Transfer the materials to another person or "mirror" the materials on any other server</li>
+              <li>Transfer the materials to another person or &quot;mirror&quot; the materials on any other server</li>
             </ul>
           </section>
 
@@ -39,7 +39,7 @@ export default function TermsPage() {
               Disclaimer
             </h2>
             <p>
-              The materials on WeaveDocs are provided on an 'as is' basis. WeaveDocs makes no 
+              The materials on WeaveDocs are provided on an &apos;as is&apos; basis. WeaveDocs makes no 
               warranties, expressed or implied, and hereby disclaims and negates all other warranties 
               including, without limitation, implied warranties or conditions of merchantability, 
               fitness for a particular purpose, or non-infringement of intellectual property.

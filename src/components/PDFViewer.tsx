@@ -15,23 +15,22 @@ interface PDFViewerProps {
   onTotalPagesChange: (total: number) => void;
 }
 
-export function PDFViewer({ pdfUrl, currentPage, onPageChange, onTotalPagesChange }: PDFViewerProps) {
-  const [totalPages, setTotalPages] = useState(0);
+export function PDFViewer({ pdfUrl, currentPage, onPageChange: _onPageChange, onTotalPagesChange }: PDFViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [pageWidth, setPageWidth] = useState(800);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
-    setTotalPages(numPages);
     onTotalPagesChange(numPages);
     setIsLoading(false);
     setError(null);
   };
 
-  const handleDocumentLoadError = (error: any) => {
-    console.error('PDF load error:', error);
-    setError(`Failed to load PDF: ${error?.message || 'Unknown error'}`);
+  const handleDocumentLoadError = (err: unknown) => {
+    console.error('PDF load error:', err);
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    setError(`Failed to load PDF: ${message}`);
     setIsLoading(false);
   };
 
