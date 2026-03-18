@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 
 // Set worker source from jsdelivr CDN
@@ -11,19 +11,16 @@ if (typeof window !== 'undefined') {
 interface PDFViewerProps {
   pdfUrl: string | null;
   currentPage: number;
-  onPageChange: (page: number) => void;
   onTotalPagesChange: (total: number) => void;
 }
 
-export function PDFViewer({ pdfUrl, currentPage, onPageChange, onTotalPagesChange }: PDFViewerProps) {
-  const [totalPages, setTotalPages] = useState(0);
+export function PDFViewer({ pdfUrl, currentPage, onTotalPagesChange }: PDFViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [pageWidth, setPageWidth] = useState(800);
+  const [pageHeight, setPageHeight] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
-    setTotalPages(numPages);
     onTotalPagesChange(numPages);
     setIsLoading(false);
     setError(null);
@@ -43,17 +40,16 @@ export function PDFViewer({ pdfUrl, currentPage, onPageChange, onTotalPagesChang
   }, [pdfUrl]);
 
   useEffect(() => {
-    const updateWidth = () => {
+    const updateHeight = () => {
       if (containerRef.current) {
-        // Set width to container width minus padding
-        const width = containerRef.current.clientWidth - 20;
-        setPageWidth(Math.max(width, 400));
+        const height = containerRef.current.clientHeight - 32;
+        setPageHeight(Math.max(height, 200));
       }
     };
 
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
   }, []);
 
   if (!pdfUrl) {
@@ -70,9 +66,9 @@ export function PDFViewer({ pdfUrl, currentPage, onPageChange, onTotalPagesChang
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full bg-gray-50 overflow-auto flex items-center justify-center p-2">
+    <div ref={containerRef} className="w-full h-full bg-gray-50 overflow-hidden flex items-center justify-center p-4">
       {isLoading && <p className="text-center text-gray-500">Loading PDF...</p>}
-      {pdfUrl && (
+      {pdfUrl && pageHeight > 0 && (
         <Document
           file={pdfUrl}
           onLoadSuccess={handleDocumentLoadSuccess}
@@ -80,9 +76,9 @@ export function PDFViewer({ pdfUrl, currentPage, onPageChange, onTotalPagesChang
         >
           <Page
             pageNumber={currentPage}
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-            width={pageWidth}
+            renderTextLayer={false}
+            renderAnnotationLayer={false}
+            height={pageHeight}
           />
         </Document>
       )}
@@ -94,34 +90,71 @@ interface PDFThumbnailProps {
   pdfUrl: string | null;
   pageNum: number;
   isActive: boolean;
+  title: string;
+  onTitleChange: (title: string) => void;
   onClick: () => void;
 }
 
-export function PDFThumbnail({ pdfUrl, pageNum, isActive, onClick }: PDFThumbnailProps) {
+export function PDFThumbnail({ pdfUrl, pageNum, isActive, title, onTitleChange, onClick }: PDFThumbnailProps) {
   if (!pdfUrl) {
     return null;
   }
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [thumbWidth, setThumbWidth] = useState<number>(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    setThumbWidth(el.clientWidth);
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setThumbWidth(Math.floor(entry.contentRect.width));
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Compute a width for the Page canvas that fits exactly inside the thumbnail container
+  const pageRenderWidth = thumbWidth > 0 ? Math.max(60, thumbWidth) : 120;
 
   return (
-    <button
+    <div
       onClick={onClick}
-      className={`w-full p-2 rounded-lg transition-colors duration-200 text-center text-sm font-medium ${
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter') onClick(); }}
+      className={`w-full rounded-lg transition-colors duration-200 ${
         isActive
           ? 'bg-black text-white'
           : 'bg-white text-black border border-gray-300 hover:bg-gray-50'
-      }`}
+      } p-1 flex flex-col cursor-pointer`}
     >
-      <div className="bg-gray-200 rounded h-20 mb-2 flex items-center justify-center overflow-hidden">
+      <div className="w-full mb-1">
+        <input
+          value={title}
+          onChange={(e) => onTitleChange(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          className={`w-full text-sm px-2 py-1 border border-gray-300 rounded ${
+            isActive ? 'bg-gray-800 text-white' : 'bg-white text-black'
+          }`}
+        />
+      </div>
+
+      <div ref={containerRef} className="bg-gray-200 rounded flex-1 min-h-20 flex items-center justify-center overflow-hidden mb-1">
         <Document file={pdfUrl} className="w-full h-full">
           <Page
             pageNumber={pageNum}
-            width={160}
+            width={pageRenderWidth}
             renderTextLayer={false}
             renderAnnotationLayer={false}
           />
         </Document>
       </div>
-      <span className="text-xs">{pageNum}</span>
-    </button>
+
+      <div className="w-full flex items-center justify-center py-1" style={{ borderTopColor: isActive ? 'rgba(255,255,255,0.18)' : '#e5e7eb', borderTopWidth: '1px' }}>
+        <span className="bg-black text-white text-xs font-medium w-5 h-5 rounded-full flex items-center justify-center">{pageNum}</span>
+      </div>
+    </div>
   );
 }
