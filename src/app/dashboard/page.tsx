@@ -49,7 +49,7 @@ export default function DashboardPage() {
                 Upload your first document to get started. Supported formats include PDF, DOCX, and more.
               </p>
 
-              <Button variant="primary" size="md">
+              <Button variant="default" size="default">
                 Upload Document
               </Button>
             </div>
