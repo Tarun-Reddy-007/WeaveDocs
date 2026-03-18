@@ -106,14 +106,17 @@ export default function PreviewPage() {
 
     const items: Array<{ type: 'page' | 'group'; pageNum?: number; path?: string; minPage?: number }> = [];
 
+    // Add direct pages in this path
     pages.forEach(pageNum => {
       items.push({ type: 'page', pageNum, minPage: pageNum });
     });
 
+    // Add child groups
     childPaths.forEach(childPath => {
       items.push({ type: 'group', path: childPath, minPage: getMinPageInPath(childPath, pageAssignments, groupMetadata) });
     });
 
+    // Sort items by minimum page number
     items.sort((a, b) => (a.minPage || Infinity) - (b.minPage || Infinity));
 
     return (
@@ -134,9 +137,13 @@ export default function PreviewPage() {
             );
           }
 
+          // Type: group
           const path = item.path!;
           const title = groupMetadata[path]?.title || 'Group';
-          const hasChildren = getChildPaths(path, groupMetadata).length > 0 || getPagesInPath(path, pageAssignments).length > 0;
+          const groupPages = getPagesInPath(path, pageAssignments);
+          const subGroups = getChildPaths(path, groupMetadata);
+          const hasChildren = subGroups.length > 0 || groupPages.length > 0;
+          const isGroupExpanded = expandedPaths.has(path);
 
           return (
             <div key={path}>
@@ -158,7 +165,7 @@ export default function PreviewPage() {
                       }}
                       className="flex-shrink-0 w-5 flex items-center justify-center text-gray-400 hover:text-gray-600"
                     >
-                      <span className={`text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                      <span className={`text-xs transition-transform ${isGroupExpanded ? 'rotate-90' : ''}`}>
                         ▶
                       </span>
                     </button>
@@ -174,7 +181,7 @@ export default function PreviewPage() {
                 </div>
               </div>
 
-              {isExpanded && hasChildren && (
+              {isGroupExpanded && hasChildren && (
                 <div>
                   {renderHierarchy(path, depth + 1)}
                 </div>

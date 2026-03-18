@@ -70,9 +70,11 @@ export function PDFViewer({ pdfUrl, currentPage, onTotalPagesChange }: PDFViewer
       {isLoading && <p className="text-center text-gray-500">Loading PDF...</p>}
       {pdfUrl && pageHeight > 0 && (
         <Document
+          key={pdfUrl}
           file={pdfUrl}
           onLoadSuccess={handleDocumentLoadSuccess}
           onLoadError={handleDocumentLoadError}
+          loading={<p className="text-center text-gray-500">Loading PDF...</p>}
         >
           <Page
             pageNumber={currentPage}
