@@ -45,6 +45,7 @@ export function HierarchyProvider({ children }: { children: ReactNode }) {
       if (stored) {
         try {
           const data = JSON.parse(stored);
+          // Batch state updates
           setDocumentId(data.documentId);
           setPdfUrl(data.pdfUrl);
           setPageAssignments(data.pageAssignments);
@@ -55,6 +56,7 @@ export function HierarchyProvider({ children }: { children: ReactNode }) {
         }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setHierarchyData = (data: {

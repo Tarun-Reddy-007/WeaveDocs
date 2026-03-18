@@ -15,7 +15,7 @@ interface PageRange {
 
 function getPagesInPath(path: string, assignments: Record<number, string>): number[] {
   return Object.entries(assignments)
-    .filter(([_, p]) => p === path)
+    .filter(([, p]) => p === path)
     .map(([pageNum]) => parseInt(pageNum, 10))
     .sort((a, b) => a - b);
 }
@@ -53,12 +53,10 @@ export default function PreviewPage() {
   const params = useParams();
   const { pdfUrl, pageAssignments, groupMetadata, pageTitles } = useHierarchy();
   
-  const documentId = params.documentId as string;
   const pathSegments = (params.path as string[]) || [];
   
   const [currentPageNum, setCurrentPageNum] = useState(1);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['root']));
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [pageRange, setPageRange] = useState<PageRange | null>(null);
 
   // Determine current page range
@@ -71,7 +69,6 @@ export default function PreviewPage() {
 
     const pages = getPagesInPath(reconstructedPath, pageAssignments);
     if (pages.length > 0) {
-      setSelectedPath(reconstructedPath);
       setPageRange({
         start: pages[0],
         end: pages[pages.length - 1],
@@ -81,7 +78,6 @@ export default function PreviewPage() {
     } else {
       // Default to cover page
       setCurrentPageNum(1);
-      setSelectedPath('root');
       setPageRange({ start: 1, end: 1, title: 'Cover' });
     }
   }, [pageAssignments, pathSegments, groupMetadata]);

@@ -29,25 +29,12 @@ const sidebarItems = [
   },
 ];
 
-// Get all unique paths and their children
-const getPaths = (assignments: PageAssignment, metadata: GroupMetadata) => {
-  const paths = new Set<string>();
-  paths.add('root'); // root
-  Object.values(assignments).forEach((path) => {
-    if (path !== 'root') {
-      const parts = path.split('/');
-      for (let i = 1; i <= parts.length; i++) {
-        paths.add(parts.slice(0, i).join('/'));
-      }
-    }
-  });
-  return Array.from(paths);
-};
+
 
 // Get pages assigned to a specific path
 const getPagesInPath = (path: string, assignments: PageAssignment): number[] => {
   return Object.entries(assignments)
-    .filter(([_, p]) => p === path)
+    .filter(([, p]) => p === path)
     .map(([pageNum]) => parseInt(pageNum, 10))
     .sort((a, b) => a - b);
 };

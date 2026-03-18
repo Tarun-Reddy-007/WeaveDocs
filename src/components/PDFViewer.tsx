@@ -26,17 +26,15 @@ export function PDFViewer({ pdfUrl, currentPage, onTotalPagesChange }: PDFViewer
     setError(null);
   };
 
-  const handleDocumentLoadError = (error: any) => {
+  const handleDocumentLoadError = (error: Error | null) => {
     console.error('PDF load error:', error);
     setError(`Failed to load PDF: ${error?.message || 'Unknown error'}`);
     setIsLoading(false);
   };
 
   useEffect(() => {
-    if (pdfUrl) {
-      setIsLoading(true);
-      setError(null);
-    }
+    setIsLoading(true);
+    setError(null);
   }, [pdfUrl]);
 
   useEffect(() => {
@@ -98,11 +96,12 @@ interface PDFThumbnailProps {
 }
 
 export function PDFThumbnail({ pdfUrl, pageNum, isActive, title, onTitleChange, onClick }: PDFThumbnailProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [thumbWidth, setThumbWidth] = useState<number>(0);
+
   if (!pdfUrl) {
     return null;
   }
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [thumbWidth, setThumbWidth] = useState<number>(0);
 
   useEffect(() => {
     const el = containerRef.current;
