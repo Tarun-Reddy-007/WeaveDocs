@@ -84,7 +84,6 @@ export default function PreviewPage() {
   const handlePathClick = (path: string) => {
     const pages = getPagesInPath(path, pageAssignments);
     if (pages.length > 0) {
-      setSelectedPath(path);
       setPageRange({
         start: pages[0],
         end: pages[pages.length - 1],
