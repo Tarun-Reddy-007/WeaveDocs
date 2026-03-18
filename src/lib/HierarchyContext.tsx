@@ -12,18 +12,28 @@ export type GroupMetadata = {
   };
 };
 
+export type ThemeColors = {
+  primaryColor: string;
+  componentColor: string;
+  backgroundColor: string;
+};
+
 interface HierarchyContextType {
   documentId: string | null;
   pdfUrl: string | null;
   pageAssignments: PageAssignment;
   groupMetadata: GroupMetadata;
   pageTitles: string[];
+  pdfFileName: string | null;
+  themeColors: ThemeColors | null;
   setHierarchyData: (data: {
     documentId: string;
     pdfUrl: string;
     pageAssignments: PageAssignment;
     groupMetadata: GroupMetadata;
     pageTitles: string[];
+    pdfFileName?: string;
+    themeColors?: ThemeColors | null;
   }) => void;
 }
 
@@ -37,6 +47,8 @@ export function HierarchyProvider({ children }: { children: ReactNode }) {
   const [pageAssignments, setPageAssignments] = useState<PageAssignment>({});
   const [groupMetadata, setGroupMetadata] = useState<GroupMetadata>({});
   const [pageTitles, setPageTitles] = useState<string[]>([]);
+  const [pdfFileName, setPdfFileName] = useState<string | null>(null);
+  const [themeColors, setThemeColors] = useState<ThemeColors | null>(null);
 
   // Initialize from localStorage on mount
   useEffect(() => {
@@ -51,6 +63,8 @@ export function HierarchyProvider({ children }: { children: ReactNode }) {
           setPageAssignments(data.pageAssignments);
           setGroupMetadata(data.groupMetadata);
           setPageTitles(data.pageTitles);
+          setPdfFileName(data.pdfFileName || null);
+          setThemeColors(data.themeColors || null);
         } catch (e) {
           console.error('Failed to load hierarchy data from storage', e);
         }
@@ -64,12 +78,16 @@ export function HierarchyProvider({ children }: { children: ReactNode }) {
     pageAssignments: PageAssignment;
     groupMetadata: GroupMetadata;
     pageTitles: string[];
+    pdfFileName?: string;
+    themeColors?: ThemeColors | null;
   }) => {
     setDocumentId(data.documentId);
     setPdfUrl(data.pdfUrl);
     setPageAssignments(data.pageAssignments);
     setGroupMetadata(data.groupMetadata);
     setPageTitles(data.pageTitles);
+    setPdfFileName(data.pdfFileName || null);
+    setThemeColors(data.themeColors || null);
 
     // Persist to localStorage
     if (typeof window !== 'undefined') {
@@ -89,6 +107,8 @@ export function HierarchyProvider({ children }: { children: ReactNode }) {
         pageAssignments,
         groupMetadata,
         pageTitles,
+        pdfFileName,
+        themeColors,
         setHierarchyData,
       }}
     >

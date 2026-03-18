@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Sidebar } from '@/components/layout/sidebar/Sidebar';
 import { useHierarchy } from '@/lib/HierarchyContext';
 
@@ -78,8 +79,38 @@ export default function ProductCatalogsPage() {
   const [tempTitle, setTempTitle] = useState('');
   const [hierarchyReady, setHierarchyReady] = useState(false);
   const [documentId, setDocumentId] = useState('');
+  const [themeInputs, setThemeInputs] = useState({
+    primaryColor: '',
+    componentColor: '',
+    backgroundColor: '',
+  });
+  const [themeErrors, setThemeErrors] = useState<Record<string, string>>({});
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isValidHex = (value: string) => /^#([0-9A-Fa-f]{6})$/.test(value.trim());
+  const hasAllThemeColors =
+    isValidHex(themeInputs.primaryColor) &&
+    isValidHex(themeInputs.componentColor) &&
+    isValidHex(themeInputs.backgroundColor);
+
+  const persistHierarchyData = () => {
+    setHierarchyData({
+      documentId,
+      pdfUrl: pdfUrl || '',
+      pageAssignments,
+      groupMetadata,
+      pageTitles,
+      pdfFileName: pdfFile?.name,
+      themeColors: hasAllThemeColors
+        ? {
+            primaryColor: themeInputs.primaryColor.trim(),
+            componentColor: themeInputs.componentColor.trim(),
+            backgroundColor: themeInputs.backgroundColor.trim(),
+          }
+        : null,
+    });
+  };
 
   const handleCreateClick = () => {
     fileInputRef.current?.click();
@@ -106,6 +137,12 @@ export default function ProductCatalogsPage() {
       setSelectionError(null);
       setHierarchyReady(false);
       setDocumentId('');
+      setThemeInputs({
+        primaryColor: '',
+        componentColor: '',
+        backgroundColor: '',
+      });
+      setThemeErrors({});
     } else {
       alert('Please select a valid PDF file');
     }
@@ -478,9 +515,7 @@ export default function ProductCatalogsPage() {
                         }}
                         className="flex-shrink-0 w-5 flex items-center justify-center text-gray-400 hover:text-gray-600"
                       >
-                        <span className={`text-xs transition-transform ${isGroupExpanded ? 'rotate-90' : ''}`}>
-                          ▶
-                        </span>
+                        {isGroupExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                       </button>
                     )}
                     {!hasChildren && <span className="w-5"></span>}
@@ -572,6 +607,26 @@ export default function ProductCatalogsPage() {
     setCurrentPage(prev => (prev < totalPages ? prev + 1 : prev));
   };
 
+  const handleThemeInputChange = (key: 'primaryColor' | 'componentColor' | 'backgroundColor', value: string) => {
+    setThemeInputs(prev => ({ ...prev, [key]: value }));
+
+    if (!value.trim()) {
+      setThemeErrors(prev => ({ ...prev, [key]: 'Color is required.' }));
+      return;
+    }
+
+    if (!isValidHex(value)) {
+      setThemeErrors(prev => ({ ...prev, [key]: 'Use a strict hex color like #1A2B3C.' }));
+      return;
+    }
+
+    setThemeErrors(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
   return (
     <div className="flex h-screen">
       {/* Sidebar */}
@@ -609,17 +664,7 @@ export default function ProductCatalogsPage() {
 
             {/* Center - Page Viewer */}
             <div className="flex-1 min-w-0 flex flex-col bg-white overflow-hidden">
-              {/* PDF Display Area */}
-              <div className="flex-1 overflow-hidden">
-                <PDFViewer
-                  pdfUrl={pdfUrl}
-                  currentPage={currentPage}
-                  onTotalPagesChange={handleTotalPagesLoaded}
-                />
-              </div>
-
-              {/* Navigation Arrows */}
-              <div className="flex gap-6 items-center justify-center py-6 px-8 bg-white border-t border-gray-200 flex-shrink-0">
+              <div className="flex-1 min-h-0 flex items-center gap-4 px-6 py-0 overflow-hidden">
                 <button
                   onClick={handlePreviousPage}
                   disabled={currentPage === 1}
@@ -645,9 +690,19 @@ export default function ProductCatalogsPage() {
                   </svg>
                 </button>
 
-                <span className="text-black font-medium min-w-16 text-center">
-                  Page {currentPage} of {totalPages}
-                </span>
+                <div className="flex-1 min-w-0 h-full flex flex-col items-center overflow-hidden">
+                    <span className="mt-4 text-black font-medium min-w-16 text-center flex-shrink-0">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <div className="flex-1 w-full overflow-hidden">
+                    <PDFViewer
+                      pdfUrl={pdfUrl}
+                      currentPage={currentPage}
+                      onTotalPagesChange={handleTotalPagesLoaded}
+                      fitToContainer={true}
+                    />
+                  </div>
+                </div>
 
                 <button
                   onClick={handleNextPage}
@@ -701,9 +756,10 @@ export default function ProductCatalogsPage() {
 
             {/* Right-most - Hierarchy Settings Panel */}
             <div className="w-80 bg-white border-l border-gray-200 overflow-auto flex flex-col">
-              {/* Document ID and Preview Section */}
-              <div className="border-b border-gray-200 p-4 flex-shrink-0">
+              {/* Document ID Section */}
+              <div className="border-b border-gray-200 bg-gray-200 px-4 py-2 flex-shrink-0">
                 <div className="flex items-center gap-2">
+                  <label className="text-sm font-semibold text-gray-800 flex-shrink-0">DOC ID</label>
                   <input
                     type="text"
                     value={documentId}
@@ -711,47 +767,109 @@ export default function ProductCatalogsPage() {
                     placeholder="Document ID"
                     className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
                   />
+                </div>
+              </div>
+
+              {/* Color Palette Section */}
+              <div className="border-b border-gray-200 bg-gray-200 p-2 flex-shrink-0">
+                <h3 className="text-sm font-semibold text-gray-800">Select color palette</h3>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-gray-600">Text</p>
+                    <input
+                      type="text"
+                      value={themeInputs.primaryColor}
+                      onChange={(e) => handleThemeInputChange('primaryColor', e.target.value)}
+                      placeholder="Text"
+                      className={`w-full rounded border px-3 py-2 text-sm ${themeErrors.primaryColor ? 'border-red-400' : 'border-gray-300'}`}
+                    />
+                    {themeErrors.primaryColor && (
+                      <p className="mt-1 text-xs text-red-600">{themeErrors.primaryColor}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-gray-600">Component</p>
+                    <input
+                      type="text"
+                      value={themeInputs.componentColor}
+                      onChange={(e) => handleThemeInputChange('componentColor', e.target.value)}
+                      placeholder="Component"
+                      className={`w-full rounded border px-3 py-2 text-sm ${themeErrors.componentColor ? 'border-red-400' : 'border-gray-300'}`}
+                    />
+                    {themeErrors.componentColor && (
+                      <p className="mt-1 text-xs text-red-600">{themeErrors.componentColor}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-gray-600">Background</p>
+                    <input
+                      type="text"
+                      value={themeInputs.backgroundColor}
+                      onChange={(e) => handleThemeInputChange('backgroundColor', e.target.value)}
+                      placeholder="Background"
+                      className={`w-full rounded border px-3 py-2 text-sm ${themeErrors.backgroundColor ? 'border-red-400' : 'border-gray-300'}`}
+                    />
+                    {themeErrors.backgroundColor && (
+                      <p className="mt-1 text-xs text-red-600">{themeErrors.backgroundColor}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Buttons Section */}
+              <div className="border-b border-gray-200 bg-gray-200 p-2 flex-shrink-0">
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => {
-                      if (documentId.length > 6) {
-                        setHierarchyData({
-                          documentId,
-                          pdfUrl: pdfUrl || '',
-                          pageAssignments,
-                          groupMetadata,
-                          pageTitles,
-                        });
+                      if (documentId.length > 6 && hasAllThemeColors) {
+                        persistHierarchyData();
                         window.open(`/services/product-catalogs/preview/${documentId}`, '_blank');
                       }
                     }}
-                    disabled={documentId.length <= 6}
-                    className={`p-2 rounded transition-colors ${
-                      documentId.length > 6
+                    disabled={documentId.length <= 6 || !hasAllThemeColors}
+                    className={`flex-1 p-1 rounded text-sm font-medium transition-colors ${
+                      documentId.length > 6 && hasAllThemeColors
                         ? 'bg-black text-white hover:bg-gray-800'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                     title="Preview document"
                   >
-                    👁
+                    Preview
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {}}
+                    disabled={documentId.length <= 6 || !hasAllThemeColors}
+                    className={`flex-1 p-1 rounded text-sm font-medium transition-colors ${
+                      documentId.length > 6 && hasAllThemeColors
+                        ? 'bg-black text-white hover:bg-gray-800'
+                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
+                    title="Publish document"
+                  >
+                    Publish
                   </button>
                 </div>
               </div>
               
-              <div className="border-b border-gray-200 p-4 flex-shrink-0">
-                <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="border-t-4 border-b border-gray-300 p-2 flex-shrink-0">
+                <div className="mb-2">
                   <h3 className="text-sm font-semibold text-gray-800">Pages</h3>
-                  <button
-                    type="button"
-                    onClick={() => createNewGroup('root')}
-                    className="rounded bg-black px-2 py-1 text-xs font-medium text-white hover:bg-gray-800"
-                  >
-                    + Parent
-                  </button>
                 </div>
                 <p className="text-xs text-gray-500">
                   Select & move · Click to rename
                 </p>
+              </div>
+
+              <div className="px-4 pt-3 pb-0 flex justify-end flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => createNewGroup('root')}
+                  className="rounded bg-black px-2 py-1 text-xs font-medium text-white hover:bg-gray-800"
+                >
+                  + Parent
+                </button>
               </div>
 
               {selectionError && (
@@ -778,7 +896,7 @@ export default function ProductCatalogsPage() {
                 </div>
               )}
 
-              <div className="flex-1 overflow-auto p-2">
+              <div className="flex-1 overflow-auto px-2 pt-0 pb-2">
                 {Object.keys(pageAssignments).length > 0 ? renderHierarchy() : (
                   <div className="p-4 text-sm text-gray-500 text-center">
                     Upload a PDF to get started

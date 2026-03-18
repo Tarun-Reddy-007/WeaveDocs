@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
 
 // Set worker source from jsdelivr CDN
 if (typeof window !== 'undefined') {
@@ -12,12 +13,14 @@ interface PDFViewerProps {
   pdfUrl: string | null;
   currentPage: number;
   onTotalPagesChange: (total: number) => void;
+  fitToContainer?: boolean;
 }
 
-export function PDFViewer({ pdfUrl, currentPage, onTotalPagesChange }: PDFViewerProps) {
+export function PDFViewer({ pdfUrl, currentPage, onTotalPagesChange, fitToContainer = false }: PDFViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [pageHeight, setPageHeight] = useState(0);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
@@ -35,20 +38,66 @@ export function PDFViewer({ pdfUrl, currentPage, onTotalPagesChange }: PDFViewer
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     setError(null);
-  }, [pdfUrl]);
+    setIsLoading(Boolean(pdfUrl));
+  }, [pdfUrl, currentPage]);
 
   useEffect(() => {
-    const updateHeight = () => {
+    const updateContainerSize = () => {
       if (containerRef.current) {
-        const height = containerRef.current.clientHeight - 32;
-        setPageHeight(Math.max(height, 200));
+        const nextHeight = Math.max(containerRef.current.clientHeight - 32, 200);
+        const nextWidth = Math.max(containerRef.current.clientWidth - 32, 200);
+        setContainerSize({
+          width: nextWidth,
+          height: nextHeight,
+        });
       }
     };
 
-    updateHeight();
-    window.addEventListener('resize', updateHeight);
-    return () => window.removeEventListener('resize', updateHeight);
+    updateContainerSize();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateContainerSize();
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    window.addEventListener('resize', updateContainerSize);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateContainerSize);
+    };
   }, []);
+
+  const renderWidth = useMemo(() => {
+    if (containerSize.width === 0) {
+      return undefined;
+    }
+
+    if (!fitToContainer) {
+      return Math.max(containerSize.width, 600);
+    }
+
+    if (pageSize.width === 0 || pageSize.height === 0) {
+      return containerSize.width;
+    }
+
+    const widthScale = containerSize.width / pageSize.width;
+    const heightScale = containerSize.height / pageSize.height;
+    const scale = Math.min(widthScale, heightScale);
+
+    return Math.max(Math.floor(pageSize.width * scale), 120);
+  }, [containerSize, fitToContainer, pageSize]);
+
+  const handlePageLoadSuccess = (page: { width: number; height: number; originalWidth?: number; originalHeight?: number }) => {
+    setPageSize({
+      width: page.originalWidth ?? page.width,
+      height: page.originalHeight ?? page.height,
+    });
+    setIsLoading(false);
+  };
 
   if (!pdfUrl) {
     return null;
@@ -64,9 +113,12 @@ export function PDFViewer({ pdfUrl, currentPage, onTotalPagesChange }: PDFViewer
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full bg-gray-50 overflow-hidden flex items-center justify-center p-4">
+    <div
+      ref={containerRef}
+      className={`w-full h-full bg-transparent p-4 flex ${fitToContainer ? 'items-center justify-center overflow-hidden' : 'flex-col items-start overflow-y-auto overflow-x-hidden'}`}
+    >
       {isLoading && <p className="text-center text-gray-500">Loading PDF...</p>}
-      {pdfUrl && pageHeight > 0 && (
+      {pdfUrl && containerSize.height > 0 && !error && (
         <Document
           key={pdfUrl}
           file={pdfUrl}
@@ -77,8 +129,9 @@ export function PDFViewer({ pdfUrl, currentPage, onTotalPagesChange }: PDFViewer
           <Page
             pageNumber={currentPage}
             renderTextLayer={false}
-            renderAnnotationLayer={false}
-            height={pageHeight}
+            renderAnnotationLayer={true}
+            width={renderWidth}
+            onLoadSuccess={handlePageLoadSuccess}
           />
         </Document>
       )}
