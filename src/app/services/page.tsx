@@ -1,58 +1,106 @@
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
 
 export default function ServicesPage() {
   const services = [
     {
       id: 'product-catalogs',
       title: 'Product Catalogs',
-      description: 'Transform your product catalogs into interactive, searchable web experiences',
-      icon: '📦',
+      description:
+        'Transform your product catalogs into interactive, searchable web experiences that convert.',
+      num: '01',
+      tag: 'Available',
       href: '/services/product-catalogs',
     },
   ];
 
+  const coming = [
+    { num: '04', title: 'Analytics', tag: 'Soon' },
+  ];
+
   return (
-    <div className="container-centered py-12">
-      {/* Page Header */}
-      <div className="mb-12">
-        <h1 className="section-title mb-2">Services</h1>
-        <p className="section-subtitle">Choose a service to get started</p>
+    <main className="min-h-[calc(100vh-3.5rem)] bg-white font-['DM_Sans',sans-serif]">
+      {/* Page header */}
+      <div className="border-b border-black">
+        <div className="max-w-6xl mx-auto px-6 py-16 md:py-24 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+          <div>
+            <p className="text-[11px] tracking-[0.25em] uppercase text-gray-400 mb-4">
+              WeaveDocs / Services
+            </p>
+            <h1 className="font-['Playfair_Display',serif] text-[clamp(2.8rem,6vw,5rem)] font-black leading-[0.95] tracking-tight text-black">
+              Our<br />
+              <span className="italic font-normal">Services</span>
+            </h1>
+          </div>
+          <p className="text-sm text-gray-500 max-w-xs leading-relaxed">
+            Pick a service to convert your static documents into live, shareable web experiences.
+          </p>
+        </div>
       </div>
 
-      {/* Services Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {services.map((service) => (
-          <Link key={service.id} href={service.href}>
-            <div className="card cursor-pointer hover:shadow-lg transition-shadow duration-200 h-full flex flex-col">
-              {/* Icon */}
-              <div className="text-5xl mb-4">{service.icon}</div>
+      {/* Services list */}
+      <div className="max-w-6xl mx-auto px-6">
+        {/* Active services */}
+        {services.map((s) => (
+          <Link key={s.id} href={s.href} className="group block border-b border-black">
+            <div className="py-10 grid grid-cols-[3rem_1fr_auto] md:grid-cols-[4rem_1fr_1fr_auto] items-center gap-6">
+              {/* Number */}
+              <span className="text-[11px] font-mono text-gray-400">{s.num}</span>
 
               {/* Title */}
-              <h2 className="text-2xl font-bold text-black mb-3">
-                {service.title}
+              <h2 className="font-['Playfair_Display',serif] text-2xl md:text-3xl font-black text-black group-hover:italic transition-all duration-200">
+                {s.title}
               </h2>
 
-              {/* Description */}
-              <p className="text-black flex-1 mb-6">
-                {service.description}
+              {/* Description — hidden on mobile */}
+              <p className="hidden md:block text-sm text-gray-500 leading-relaxed max-w-sm">
+                {s.description}
               </p>
 
-              {/* CTA Button */}
-              <Button variant="primary" size="md" className="w-full">
-                Open Service
-              </Button>
+              {/* CTA */}
+              <div className="flex items-center gap-4">
+                <span className="hidden md:inline text-[11px] tracking-[0.2em] uppercase text-black border border-black px-3 py-1">
+                  {s.tag}
+                </span>
+                <span className="inline-flex items-center justify-center w-10 h-10 border border-black text-black group-hover:bg-black group-hover:text-white transition-all duration-200 text-lg">
+                  →
+                </span>
+              </div>
             </div>
           </Link>
         ))}
+
+        {/* Coming soon rows */}
+        {coming.map((s) => (
+          <div
+            key={s.num}
+            className="border-b border-gray-200 py-10 grid grid-cols-[3rem_1fr_auto] md:grid-cols-[4rem_1fr_1fr_auto] items-center gap-6 opacity-40 cursor-not-allowed select-none"
+          >
+            <span className="text-[11px] font-mono text-gray-400">{s.num}</span>
+            <h2 className="font-['Playfair_Display',serif] text-2xl md:text-3xl font-black text-black">
+              {s.title}
+            </h2>
+            <span className="hidden md:block" />
+            <div className="flex items-center gap-4">
+              <span className="text-[11px] tracking-[0.2em] uppercase text-gray-400 border border-gray-300 px-3 py-1">
+                {s.tag}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Coming Soon Notice */}
-      <div className="mt-16 pt-12 border-t border-gray-300">
-        <p className="text-black text-center font-medium">
-          More services coming soon...
-        </p>
+      {/* Footer note */}
+      <div className="border-t border-black max-w-6xl mx-auto px-6 py-6 mt-8 flex items-center justify-between">
+        <span className="text-[11px] tracking-[0.2em] uppercase text-gray-400">
+          More services on the way
+        </span>
+        <Link
+          href="/"
+          className="text-[11px] tracking-[0.2em] uppercase font-semibold text-black hover:text-gray-500 transition-colors"
+        >
+          ← Back home
+        </Link>
       </div>
-    </div>
+    </main>
   );
 }
