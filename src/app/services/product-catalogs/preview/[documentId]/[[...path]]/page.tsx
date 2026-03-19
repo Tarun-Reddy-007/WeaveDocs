@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -84,6 +84,48 @@ function getPathForPage(pageNum: number, assignments: Record<number, string>): s
   return assignments[pageNum] || 'root';
 }
 
+function isPathAGroup(path: string, metadata: Record<string, { title: string }>): boolean {
+  const childPaths = getChildPaths(path, metadata);
+  return childPaths.length > 0;
+}
+
+function getAllPagesInPathRecursive(path: string, assignments: Record<number, string>, metadata: Record<string, { title: string }>): number[] {
+  const directPages = getPagesInPath(path, assignments);
+  const childPaths = getChildPaths(path, metadata);
+
+  const items: Array<{ type: 'page' | 'group'; pageNum?: number; path?: string; minPage?: number }> = [];
+
+  directPages.forEach(pageNum => {
+    items.push({ type: 'page', pageNum, minPage: pageNum });
+  });
+
+  childPaths.forEach(childPath => {
+    items.push({ type: 'group', path: childPath, minPage: getMinPageInPath(childPath, assignments, metadata) });
+  });
+
+  items.sort((a, b) => (a.minPage || Infinity) - (b.minPage || Infinity));
+
+  const result: number[] = [];
+
+  function flattenItems(itemList: typeof items) {
+    itemList.forEach(item => {
+      if (item.type === 'page') {
+        result.push(item.pageNum!);
+      } else if (item.path) {
+        const childPages = getAllPagesInPathRecursive(item.path, assignments, metadata);
+        result.push(...childPages);
+      }
+    });
+  }
+
+  flattenItems(items);
+  return result;
+}
+
+function getPathForPageNum(pageNum: number, assignments: Record<number, string>): string {
+  return assignments[pageNum] || 'root';
+}
+
 function buildPreviewUrl(documentId: string, path: string, pageNum: number, titles: string[]): string {
   const pageTitle = titles[pageNum - 1] || `Page ${pageNum}`;
   const encodedTitle = encodePathSegment(pageTitle);
@@ -101,16 +143,90 @@ function decodePathSegment(segment: string): string {
   return decodeURIComponent(segment);
 }
 
+interface PageStackItemProps {
+  pageNum: number;
+  pdfUrl: string | null;
+  pageTitles: string[];
+  pageHeightsRef: React.MutableRefObject<Map<number, { top: number; height: number }>>;
+  pdfContainerRef: React.RefObject<HTMLDivElement | null>;
+  selectedPath: string;
+  params: any;
+  navigateToPreviewUrl: (url: string) => void;
+  setCurrentPageNum: (pageNum: number) => void;
+  onInternalLinkClick?: (pageNum: number) => void;
+}
+
+function PageStackItem({
+  pageNum,
+  pdfUrl,
+  pageTitles,
+  pageHeightsRef,
+  pdfContainerRef,
+  selectedPath,
+  params,
+  navigateToPreviewUrl,
+  setCurrentPageNum,
+  onInternalLinkClick,
+}: PageStackItemProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new ResizeObserver(() => {
+      if (containerRef.current && pdfContainerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const parentRect = pdfContainerRef.current.getBoundingClientRect();
+        const relativeTop = rect.top - parentRect.top + pdfContainerRef.current.scrollTop;
+        
+        pageHeightsRef.current.set(pageNum, {
+          top: relativeTop,
+          height: rect.height,
+        });
+      }
+    });
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [pageNum, pageHeightsRef, pdfContainerRef]);
+
+  return (
+    <div 
+      key={`page-${pageNum}`}
+      ref={containerRef}
+      className="mb-8 w-full"
+    >
+      <PDFViewer
+        pdfUrl={pdfUrl}
+        currentPage={pageNum}
+        onTotalPagesChange={() => {}}
+        onInternalLinkClick={onInternalLinkClick}
+        fitToContainer={false}
+      />
+    </div>
+  );
+}
+
 export default function PreviewPage() {
   const params = useParams();
   const pathname = usePathname();
   const router = useRouter();
-  const { pdfUrl, pageAssignments, groupMetadata, pageTitles, pdfFileName, themeColors } = useHierarchy();
+  const { pdfUrl, pageAssignments, groupMetadata, pageTitles, pdfFileName, docName, themeColors } = useHierarchy();
   
   const [currentPageNum, setCurrentPageNum] = useState(1);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['root']));
   const [pageRange, setPageRange] = useState<PageRange | null>(null);
   const [selectedPath, setSelectedPath] = useState<string>('root');
+  const [pagesInSelectedPath, setPagesInSelectedPath] = useState<number[]>([]);
+  const [viewingPathDuringScroll, setViewingPathDuringScroll] = useState<string>('root');
+  const [hasInitialized, setHasInitialized] = useState(false);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
+  const pageHeightsRef = useRef<Map<number, { top: number; height: number }>>(new Map());
+  const pageToPathMapRef = useRef<Map<number, string>>(new Map());
+  const lastDocumentIdRef = useRef<string>('');
 
   const updateExpandedPaths = (path: string) => {
     setExpandedPaths(prev => {
@@ -133,120 +249,274 @@ export default function PreviewPage() {
     router.push(url);
   };
 
-  // Determine current page range
+  // Helper to determine what pages to show for a given path
+  const getPagesToShowForPath = (path: string): number[] => {
+    // Special case: 'root' only shows pages directly assigned to root
+    if (path === 'root') {
+      return getPagesInPath('root', pageAssignments);
+    }
+    
+    // If path is a group (has child groups), show all pages recursively
+    const isGroup = isPathAGroup(path, groupMetadata);
+    if (isGroup) {
+      return getAllPagesInPathRecursive(path, pageAssignments, groupMetadata);
+    }
+    
+    // Otherwise, show only pages directly assigned to this path
+    return getPagesInPath(path, pageAssignments);
+  };
+
+  // Initialize on first load ONLY - not on every URL change
   useEffect(() => {
-    if (Object.keys(pageAssignments).length === 0) return;
+    if (Object.keys(pageAssignments).length === 0 || hasInitialized) return;
 
     const pathSegments = (params.path as string[]) || [];
     const documentId = (params.documentId as string) || '';
     const defaultPageNum = 1;
     const defaultPath = getPathForPage(defaultPageNum, pageAssignments);
 
-    const applySelection = (path: string, pageNum: number) => {
-      const pages = getPagesInPath(path, pageAssignments);
-      const resolvedPageNum = pages.includes(pageNum) ? pageNum : pages[0] || pageNum;
-
-      setCurrentPageNum(resolvedPageNum);
-      setPageRange({
-        start: pages[0] || resolvedPageNum,
-        end: pages[pages.length - 1] || resolvedPageNum,
-        title: path === 'root' ? 'Cover' : (groupMetadata[path]?.title || 'Page'),
-      });
-      setSelectedPath(path);
-      updateExpandedPaths(path);
-    };
+    let pathToShow = defaultPath;
+    let pageToShow = defaultPageNum;
+    let pagesToShow: number[] = [];
     
     if (pathSegments.length === 0) {
-      applySelection(defaultPath, defaultPageNum);
-      navigateToPreviewUrl(buildPreviewUrl(documentId, defaultPath, defaultPageNum, pageTitles), 'replace');
-      return;
-    }
-
-    // Last segment could be page title
-    const lastSegment = pathSegments[pathSegments.length - 1];
-    
-    // Check if the last segment matches any page title
-    let pageNum: number | null = null;
-    
-    for (let i = 0; i < pageTitles.length; i++) {
-      const title = pageTitles[i] || `Page ${i + 1}`;
-      if (title === decodePathSegment(lastSegment)) {
-        pageNum = i + 1;
-        break;
-      }
-    }
-
-    // Build the group path from all segments except the last one (if it's a page title)
-    let groupPath = 'root';
-    let hasPageAtEnd = pageNum !== null;
-    
-    if (pathSegments.length > 1) {
-      const groupSegments = hasPageAtEnd ? pathSegments.slice(0, -1) : pathSegments;
-      if (groupSegments.length > 0) {
-        // Decode each segment and join with / to match internal path format
-        groupPath = groupSegments.map(decodePathSegment).join('/');
-      }
-    } else if (!hasPageAtEnd) {
-      // Single segment that's not a page - it's a group, so decode it
-      groupPath = decodePathSegment(lastSegment);
-    }
-
-    // Validate the group path exists
-    if (groupPath !== 'root' && !(groupPath in groupMetadata)) {
-      applySelection(defaultPath, defaultPageNum);
-      navigateToPreviewUrl(buildPreviewUrl(documentId, defaultPath, defaultPageNum, pageTitles), 'replace');
-      return;
-    }
-
-    const pages = getPagesInPath(groupPath, pageAssignments);
-    
-    if (hasPageAtEnd && pageNum !== null) {
-      // Page is specified
-      if (pages.includes(pageNum)) {
-        applySelection(groupPath, pageNum);
-      } else {
-        applySelection(defaultPath, defaultPageNum);
-        navigateToPreviewUrl(buildPreviewUrl(documentId, defaultPath, defaultPageNum, pageTitles), 'replace');
-      }
-    } else if (pages.length > 0) {
-      const firstPageInGroup = pages[0];
-      applySelection(groupPath, firstPageInGroup);
-      navigateToPreviewUrl(buildPreviewUrl(documentId, groupPath, firstPageInGroup, pageTitles), 'replace');
+      // No path in URL - show just the first page initially
+      pathToShow = defaultPath;
+      pageToShow = defaultPageNum;
+      pagesToShow = [defaultPageNum];
     } else {
-      applySelection(defaultPath, defaultPageNum);
-      navigateToPreviewUrl(buildPreviewUrl(documentId, defaultPath, defaultPageNum, pageTitles), 'replace');
+      // Parse URL path - last segment could be a page title or a group name
+      const lastSegment = pathSegments[pathSegments.length - 1];
+      const decodedLastSegment = decodePathSegment(lastSegment);
+      let foundPageNum: number | null = null;
+      
+      // Check if last segment is a page title
+      for (let i = 0; i < pageTitles.length; i++) {
+        const title = pageTitles[i] || `Page ${i + 1}`;
+        if (title === decodedLastSegment) {
+          foundPageNum = i + 1;
+          break;
+        }
+      }
+
+      // Build the group path
+      let groupPath = 'root';
+      if (foundPageNum !== null) {
+        // Last segment is a page title - group path is everything before it
+        if (pathSegments.length > 1) {
+          const groupSegments = pathSegments.slice(0, -1);
+          groupPath = groupSegments.map(decodePathSegment).join('/');
+        }
+      } else if (decodedLastSegment in groupMetadata) {
+        // Last segment is a group name - include it in the group path
+        groupPath = pathSegments.map(decodePathSegment).join('/');
+        pageToShow = getPagesInPath(groupPath, pageAssignments)[0] || defaultPageNum;
+      } else {
+        // Last segment is neither page nor group - treat as group path if valid, otherwise error
+        groupPath = pathSegments.map(decodePathSegment).join('/');
+        if (!(groupPath in groupMetadata) && groupPath !== 'root') {
+          // Invalid path - fallback
+          groupPath = 'root';
+        }
+      }
+
+      // Validate group path exists (if not root)
+      if (groupPath !== 'root' && !(groupPath in groupMetadata)) {
+        pathToShow = defaultPath;
+        pageToShow = defaultPageNum;
+        pagesToShow = [defaultPageNum];
+      } else {
+        pathToShow = groupPath;
+        pageToShow = foundPageNum || defaultPageNum;
+        
+        // CRITICAL: If URL has a page title at the end, show ONLY that page
+        // Otherwise, show the group/path pages normally
+        if (foundPageNum !== null) {
+          // User directly clicked on a specific page - show only that page
+          pagesToShow = [foundPageNum];
+        } else {
+          // User clicked on a group - show all pages in that group
+          pagesToShow = getPagesToShowForPath(groupPath);
+        }
+      }
     }
-  }, [pageAssignments, params.path, params.documentId, groupMetadata, pageTitles, pathname, router]);
+
+    // Build page-to-path mapping
+    const pageToPathMap = new Map<number, string>();
+    const buildPathMap = (currentPath: string) => {
+      const directPages = getPagesInPath(currentPath, pageAssignments);
+      directPages.forEach(p => {
+        pageToPathMap.set(p, currentPath);
+      });
+      
+      const childPaths = getChildPaths(currentPath, groupMetadata);
+      childPaths.forEach(childPath => {
+        buildPathMap(childPath);
+      });
+    };
+    
+    buildPathMap(pathToShow);
+    pageToPathMapRef.current = pageToPathMap;
+
+    const validPageToShow = pagesToShow.includes(pageToShow) ? pageToShow : pagesToShow[0] || pageToShow;
+
+    setPagesInSelectedPath(pagesToShow);
+    setCurrentPageNum(validPageToShow);
+    setSelectedPath(pathToShow);
+    setViewingPathDuringScroll(pathToShow);
+    setPageRange({
+      start: pagesToShow[0] || validPageToShow,
+      end: pagesToShow[pagesToShow.length - 1] || validPageToShow,
+      title: pathToShow === 'root' ? 'Cover' : (groupMetadata[pathToShow]?.title || 'Page'),
+    });
+    
+    updateExpandedPaths(pathToShow);
+    setHasInitialized(true);
+    lastDocumentIdRef.current = documentId;
+  }, [pageAssignments, groupMetadata, pageTitles, params.documentId]);
+
+  // Handle scroll - only update breadcrumb highlighting, don't change what's displayed or URL
+  useEffect(() => {
+    if (!pdfContainerRef.current || pagesInSelectedPath.length === 0 || !hasInitialized) return;
+
+    const container = pdfContainerRef.current;
+
+    const handleScroll = () => {
+      if (!pdfContainerRef.current) return;
+
+      const scrollTop = pdfContainerRef.current.scrollTop;
+      const containerHeight = pdfContainerRef.current.clientHeight;
+      const centerPoint = scrollTop + (containerHeight / 2);
+
+      let closestPage = pagesInSelectedPath[0];
+      let closestDistance = Infinity;
+
+      pagesInSelectedPath.forEach(pageNum => {
+        const pageInfo = pageHeightsRef.current.get(pageNum);
+        if (pageInfo) {
+          const pageCenter = pageInfo.top + (pageInfo.height / 2);
+          const distance = Math.abs(pageCenter - centerPoint);
+
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestPage = pageNum;
+          }
+        }
+      });
+
+      if (closestPage !== currentPageNum) {
+        // Update current page number for title display
+        setCurrentPageNum(closestPage);
+        
+        // Find the actual path of this page for breadcrumb highlighting only
+        const pagePath = pageToPathMapRef.current.get(closestPage) || selectedPath;
+        setViewingPathDuringScroll(pagePath);
+        
+        // Don't update URL during scroll - this keeps the display stable
+        // URL will only change when user explicitly clicks something
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [pagesInSelectedPath, currentPageNum, hasInitialized]);
 
   const handlePathClick = (path: string) => {
-    const pages = getPagesInPath(path, pageAssignments);
-    if (pages.length > 0) {
+    // Build page-to-path mapping
+    const pageToPathMap = new Map<number, string>();
+    const buildPathMap = (currentPath: string) => {
+      const directPages = getPagesInPath(currentPath, pageAssignments);
+      directPages.forEach(p => {
+        pageToPathMap.set(p, currentPath);
+      });
+      
+      const childPaths = getChildPaths(currentPath, groupMetadata);
+      childPaths.forEach(childPath => {
+        buildPathMap(childPath);
+      });
+    };
+    
+    buildPathMap(path);
+    pageToPathMapRef.current = pageToPathMap;
+
+    // Get pages to show using the helper
+    const pagesToShow = getPagesToShowForPath(path);
+    
+    if (pagesToShow.length > 0) {
+      const firstPage = pagesToShow[0];
+      
+      setPagesInSelectedPath(pagesToShow);
       setPageRange({
-        start: pages[0],
-        end: pages[pages.length - 1],
+        start: pagesToShow[0],
+        end: pagesToShow[pagesToShow.length - 1],
         title: path === 'root' ? 'Cover' : (groupMetadata[path]?.title || 'Page'),
       });
-      setCurrentPageNum(pages[0]);
+      setCurrentPageNum(firstPage);
       setSelectedPath(path);
+      setViewingPathDuringScroll(path);
       updateExpandedPaths(path);
       
+      // Clear scroll position when changing selection
+      if (pdfContainerRef.current) {
+        pdfContainerRef.current.scrollTop = 0;
+      }
+      
+      // For group clicks, URL ends with group path (no page title)
+      // So URL will be /preview/doc/{path}
       const documentId = (params.documentId as string) || '';
-      navigateToPreviewUrl(buildPreviewUrl(documentId, path, pages[0], pageTitles));
+      let groupUrl = `/services/product-catalogs/preview/${documentId}`;
+      if (path !== 'root') {
+        const encodedPath = path.split('/').map(encodePathSegment).join('/');
+        groupUrl += `/${encodedPath}`;
+      } else {
+        // For root, show first page in URL
+        const pageTitle = pageTitles[firstPage - 1] || `Page ${firstPage}`;
+        const encodedTitle = encodePathSegment(pageTitle);
+        groupUrl += `/${encodedTitle}`;
+      }
+      navigateToPreviewUrl(groupUrl);
     }
   };
 
   const handlePageClick = (path: string, pageNum: number) => {
+    // Build page-to-path mapping
+    const pageToPathMap = new Map<number, string>();
+    const buildPathMap = (currentPath: string) => {
+      const directPages = getPagesInPath(currentPath, pageAssignments);
+      directPages.forEach(p => {
+        pageToPathMap.set(p, currentPath);
+      });
+      
+      const childPaths = getChildPaths(currentPath, groupMetadata);
+      childPaths.forEach(childPath => {
+        buildPathMap(childPath);
+      });
+    };
+    
+    buildPathMap(path);
+    pageToPathMapRef.current = pageToPathMap;
+
+    // Clicking on a page shows ONLY that page
+    const pagesToShow = [pageNum];
+    
     setSelectedPath(path);
     setCurrentPageNum(pageNum);
-    const pages = getPagesInPath(path, pageAssignments);
-    if (pages.length > 0) {
-      setPageRange({
-        start: pages[0],
-        end: pages[pages.length - 1],
-        title: path === 'root' ? 'Cover' : (groupMetadata[path]?.title || 'Page'),
-      });
-    }
+    setPagesInSelectedPath(pagesToShow);
+    setViewingPathDuringScroll(path);
+    setPageRange({
+      start: pageNum,
+      end: pageNum,
+      title: pageTitles[pageNum - 1] || `Page ${pageNum}`,
+    });
     updateExpandedPaths(path);
+    
+    // Clear scroll position when changing selection
+    if (pdfContainerRef.current) {
+      pdfContainerRef.current.scrollTop = 0;
+    }
     
     const documentId = (params.documentId as string) || '';
     navigateToPreviewUrl(buildPreviewUrl(documentId, path, pageNum, pageTitles));
@@ -276,16 +546,19 @@ export default function PreviewPage() {
         {items.map((item) => {
           if (item.type === 'page') {
             const pageNum = item.pageNum!;
-            const isActive = selectedPath === parentPath && currentPageNum === pageNum;
+            const isSelected = selectedPath === parentPath && currentPageNum === pageNum;
+            const isViewing = viewingPathDuringScroll === parentPath && currentPageNum === pageNum;
+            // Show highlight if either selected or part of viewing breadcrumb
+            const shouldHighlight = isSelected || isViewing;
+            
             return (
               <div key={`page-${pageNum}`} style={{ paddingLeft: `${depth * 12}px` }} className="mr-6">
                 <button
                   onClick={() => handlePageClick(parentPath, pageNum)}
-                  className={`w-full text-left text-sm py-2 px-3 transition-colors border-r-4 truncate ${isActive ? 'font-bold' : 'hover:cursor-pointer'}`}
+                  className={`w-full text-left text-sm py-2 px-3 transition-colors border-r-4 truncate ${shouldHighlight ? 'font-bold' : 'hover:cursor-pointer'}`}
                   style={{
                     color: primaryColor,
-                    borderRightColor: isActive ? componentColor : 'transparent',
-                    backgroundColor: isActive ? `${componentColor}14` : 'transparent',
+                    borderRightColor: shouldHighlight ? componentColor : 'transparent',
                   }}
                 >
                   {pageTitles[pageNum - 1] || `Title ${pageNum}`}
@@ -301,7 +574,10 @@ export default function PreviewPage() {
           const subGroups = getChildPaths(path, groupMetadata);
           const hasChildren = subGroups.length > 0 || groupPages.length > 0;
           const isGroupExpanded = expandedPaths.has(path);
-          const isGroupActive = selectedPath === path;
+          const isSelected = selectedPath === path;
+          // Check if this path is in the viewing breadcrumb
+          const isInViewingBreadcrumb = getAncestorPaths(viewingPathDuringScroll).includes(path);
+          const shouldHighlight = isSelected || isInViewingBreadcrumb;
 
           return (
             <div key={path}>
@@ -331,11 +607,10 @@ export default function PreviewPage() {
 
                   <button
                     onClick={() => handlePathClick(path)}
-                    className={`flex-1 text-left text-sm py-2 px-2 transition-colors border-r-4 truncate ${isGroupActive ? 'font-bold' : 'hover:cursor-pointer'}`}
+                    className={`flex-1 text-left text-sm py-2 px-2 transition-colors border-r-4 truncate ${shouldHighlight ? 'font-bold' : 'hover:cursor-pointer'}`}
                     style={{
                       color: primaryColor,
-                      borderRightColor: isGroupActive ? componentColor : 'transparent',
-                      backgroundColor: isGroupActive ? `${componentColor}14` : 'transparent',
+                      borderRightColor: shouldHighlight ? componentColor : 'transparent',
                     }}
                   >
                     {title}
@@ -358,6 +633,7 @@ export default function PreviewPage() {
   const primaryColor = themeColors?.primaryColor || '#0f172a';
   const componentColor = themeColors?.componentColor || '#22c55e';
   const backgroundColor = themeColors?.backgroundColor || '#f3f4f6';
+  const fontStyle = themeColors?.fontStyle || 'Arial';
 
   if (Object.keys(pageAssignments).length === 0) {
     return (
@@ -404,17 +680,17 @@ export default function PreviewPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen" style={{ color: primaryColor, backgroundColor, ['--component-color' as any]: componentColor }}>
+    <div className="flex flex-col h-screen" style={{ color: primaryColor, backgroundColor, fontFamily: fontStyle, ['--component-color' as any]: componentColor }}>
       {/* Header */}
       <div className="px-16 py-4 pt-8">
         <div className="max-w-full mx-auto">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <h1 className="text-4xl font-bold" style={{ color: primaryColor }}>
-                {pdfFileName ? pdfFileName.replace(/\.pdf$/i, '') : 'Catalog'}
+              <h1 className="text-4xl font-bold" style={{ color: primaryColor, fontFamily: fontStyle }}>
+                {docName || (pdfFileName ? pdfFileName.replace(/\.pdf$/i, '') : 'Catalog')}
               </h1>
               <div className="flex items-center justify-between mt-4 gap-4">
-                    <p className="text-xl " style={{ color: primaryColor }}>{documentId}</p>
+                    <p className="text-xl " style={{ color: primaryColor, fontFamily: fontStyle }}>{documentId}</p>
                     <div className="flex items-center gap-4">
                       <button
                         onClick={handleCopyLink}
@@ -446,6 +722,7 @@ export default function PreviewPage() {
           className="w-96 overflow-y-auto flex flex-col pl-16"
           style={{
             backgroundColor,
+            fontFamily: fontStyle,
             scrollbarWidth: 'thin',
             scrollbarColor: `${componentColor} transparent`,
           }}
@@ -470,65 +747,80 @@ export default function PreviewPage() {
         </div>
 
         {/* Right Content - PDF and Title */}
-        <div className="flex-1 flex flex-col overflow-hidden py-4 px-16" style={{ backgroundColor }}>
+        <div className="flex-1 flex flex-col overflow-hidden py-4 px-16" style={{ backgroundColor, fontFamily: fontStyle }}>
           {/* Title Section */}
           <div className="mb-6">
-            <h2 className="text-3xl font-bold" style={{ color: primaryColor }}>
+            <h2 className="text-3xl font-bold" style={{ color: primaryColor, fontFamily: fontStyle }}>
               {pageTitles[currentPageNum - 1] || `Page ${currentPageNum}`}
             </h2>
           </div>
 
-          {/* PDF Viewer */}
+          {/* PDF Viewer - Stacked or Single Page */}
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className="flex-1 overflow-hidden">
-              <PDFViewer
-                pdfUrl={pdfUrl}
-                currentPage={currentPageNum}
-                onTotalPagesChange={() => {}}
-                onInternalLinkClick={(pageNum) => setCurrentPageNum(pageNum)}
-              />
-            </div>
-
-            {/* Page Navigation - Only show for groups */}
-            {isGroupSelected && (
-              <div className="flex items-center justify-center gap-6 mt-4 pb-4">
-                <button
-                  onClick={() => {
-                    const newPage = Math.max(pageRange.start, currentPageNum - 1);
-                    setCurrentPageNum(newPage);
-                    setSelectedPath(selectedPath);
-                    updateExpandedPaths(selectedPath);
-                    
-                    const documentId = (params.documentId as string) || '';
-                    navigateToPreviewUrl(buildPreviewUrl(documentId, selectedPath, newPage, pageTitles));
-                  }}
-                  disabled={currentPageNum <= pageRange.start}
-                  className="p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-2xl"
-                  style={{ color: primaryColor, backgroundColor: 'transparent' }}
-                >
-                  &lt;
-                </button>
-                <span className="text-sm font-medium min-w-12 text-center" style={{ color: primaryColor }}>
-                  {currentIndex + 1} / {totalPagesInRange}
-                </span>
-                <button
-                  onClick={() => {
-                    const newPage = Math.min(pageRange.end, currentPageNum + 1);
-                    setCurrentPageNum(newPage);
-                    setSelectedPath(selectedPath);
-                    updateExpandedPaths(selectedPath);
-                    
-                    const documentId = (params.documentId as string) || '';
-                    navigateToPreviewUrl(buildPreviewUrl(documentId, selectedPath, newPage, pageTitles));
-                  }}
-                  disabled={currentPageNum >= pageRange.end}
-                  className="p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-2xl"
-                  style={{ color: primaryColor, backgroundColor: 'transparent' }}
-                >
-                  &gt;
-                </button>
+            {pagesInSelectedPath.length > 1 ? (
+              // Multiple pages: show stacked with scroll
+              <div 
+                ref={pdfContainerRef}
+                className="flex-1 overflow-y-auto flex flex-col"
+                style={{
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: `${componentColor} transparent`,
+                }}
+              >
+                <style>{`
+                  div::-webkit-scrollbar {
+                    width: 8px;
+                  }
+                  div::-webkit-scrollbar-track {
+                    background: transparent;
+                  }
+                  div::-webkit-scrollbar-thumb {
+                    background-color: ${componentColor};
+                    border-radius: 4px;
+                  }
+                `}</style>
+                <div className="flex flex-col">
+                  {pagesInSelectedPath.map((pageNum) => (
+                    <PageStackItem
+                      key={`page-${pageNum}`}
+                      pageNum={pageNum}
+                      pdfUrl={pdfUrl}
+                      pageTitles={pageTitles}
+                      pageHeightsRef={pageHeightsRef}
+                      pdfContainerRef={pdfContainerRef}
+                      selectedPath={selectedPath}
+                      params={params}
+                      navigateToPreviewUrl={navigateToPreviewUrl}
+                      setCurrentPageNum={setCurrentPageNum}
+                      onInternalLinkClick={(newPageNum) => {
+                        const newPageIndex = pagesInSelectedPath.indexOf(newPageNum);
+                        if (newPageIndex !== -1) {
+                          setCurrentPageNum(newPageNum);
+                          const pageActualPath = pageToPathMapRef.current.get(newPageNum) || selectedPath;
+                          const documentId = (params.documentId as string) || '';
+                          navigateToPreviewUrl(buildPreviewUrl(documentId, pageActualPath, newPageNum, pageTitles));
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
-            )}
+            ) : pagesInSelectedPath.length === 1 ? (
+              // Single page: show without scroll
+              <div className="flex-1 overflow-hidden w-full">
+                <PDFViewer
+                  pdfUrl={pdfUrl}
+                  currentPage={pagesInSelectedPath[0]}
+                  onTotalPagesChange={() => {}}
+                  onInternalLinkClick={(newPageNum) => {
+                    setCurrentPageNum(newPageNum);
+                    const documentId = (params.documentId as string) || '';
+                    navigateToPreviewUrl(buildPreviewUrl(documentId, selectedPath, newPageNum, pageTitles));
+                  }}
+                  fitToContainer={false}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

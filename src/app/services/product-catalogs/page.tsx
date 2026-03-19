@@ -32,7 +32,6 @@ const sidebarItems = [
 
 
 
-// Get pages assigned to a specific path
 const getPagesInPath = (path: string, assignments: PageAssignment): number[] => {
     return Object.entries(assignments)
         .filter(([, p]) => p === path)
@@ -40,7 +39,6 @@ const getPagesInPath = (path: string, assignments: PageAssignment): number[] => 
         .sort((a, b) => a - b);
 };
 
-// Get direct children of a path (only groups from metadata)
 const getChildPaths = (parentPath: string, metadata: GroupMetadata): string[] => {
     const prefix = parentPath === 'root' ? '' : `${parentPath}/`;
     const children = new Set<string>();
@@ -79,6 +77,8 @@ export default function ProductCatalogsPage() {
     const [tempTitle, setTempTitle] = useState('');
     const [hierarchyReady, setHierarchyReady] = useState(false);
     const [documentId, setDocumentId] = useState('');
+    const [docName, setDocName] = useState('');
+    const [fontStyle, setFontStyle] = useState('Arial');
     const [themeInputs, setThemeInputs] = useState({
         primaryColor: '',
         componentColor: '',
@@ -97,6 +97,7 @@ export default function ProductCatalogsPage() {
     const persistHierarchyData = () => {
         setHierarchyData({
             documentId,
+            docName,
             pdfUrl: pdfUrl || '',
             pageAssignments,
             groupMetadata,
@@ -107,6 +108,7 @@ export default function ProductCatalogsPage() {
                     primaryColor: themeInputs.primaryColor.trim(),
                     componentColor: themeInputs.componentColor.trim(),
                     backgroundColor: themeInputs.backgroundColor.trim(),
+                    fontStyle,
                 }
                 : null,
         });
@@ -137,6 +139,8 @@ export default function ProductCatalogsPage() {
             setSelectionError(null);
             setHierarchyReady(false);
             setDocumentId('');
+            setDocName('');
+            setFontStyle('Arial');
             setThemeInputs({
                 primaryColor: '',
                 componentColor: '',
@@ -153,8 +157,6 @@ export default function ProductCatalogsPage() {
 
         if (!hierarchyReady) {
             setPageTitles(Array.from({ length: total }, (_, i) => `Title ${i + 1}`));
-
-            // Initialize all pages at root
             const initialAssignments: PageAssignment = {};
             for (let i = 1; i <= total; i++) {
                 initialAssignments[i] = 'root';
@@ -208,7 +210,6 @@ export default function ProductCatalogsPage() {
             return updated;
         });
 
-        // Reassign all pages that were in oldPath to newPath
         setPageAssignments(prev => {
             const updated = { ...prev };
             Object.entries(prev).forEach(([pageNum, p]) => {
@@ -230,17 +231,14 @@ export default function ProductCatalogsPage() {
         });
     };
 
-    // Delete/unwrap a group and move its pages to parent
     const deleteGroup = (path: string) => {
         if (path === 'root') return;
 
         const parentPath = path.substring(0, path.lastIndexOf('/')) || 'root';
 
-        // Reassign all pages in this group AND all descendants to parent
         setPageAssignments(prev => {
             const updated = { ...prev };
             Object.entries(prev).forEach(([pageNum, assignedPath]) => {
-                // Reassign if assigned to deleted path or any descendant of it
                 if (assignedPath === path || assignedPath.startsWith(path + '/')) {
                     updated[parseInt(pageNum, 10)] = parentPath;
                 }
@@ -248,13 +246,9 @@ export default function ProductCatalogsPage() {
             return updated;
         });
 
-        // Remove group metadata and all nested child groups
         setGroupMetadata(prev => {
             const updated = { ...prev };
-            // Delete the group itself
             delete updated[path];
-
-            // Delete all descendant groups
             const childrenToDelete = Object.keys(updated).filter(key =>
                 key.startsWith(path + '/')
             );
@@ -265,11 +259,9 @@ export default function ProductCatalogsPage() {
             return updated;
         });
 
-        // Remove from expanded
         setExpandedPaths(prev => {
             const updated = new Set(prev);
             updated.delete(path);
-            // Also remove any expanded child paths
             const toRemove = Array.from(updated).filter(expandedPath =>
                 expandedPath.startsWith(path + '/')
             );
@@ -278,7 +270,6 @@ export default function ProductCatalogsPage() {
         });
     };
 
-    // Check if pages are consecutive
     const areConsecutive = (pageNums: number[]): boolean => {
         if (pageNums.length === 0) return true;
         const sorted = [...pageNums].sort((a, b) => a - b);
@@ -288,30 +279,23 @@ export default function ProductCatalogsPage() {
         return true;
     };
 
-    // Move selected pages to a target path
     const moveSelectedPages = (targetPath: string) => {
         if (selectedPages.size === 0) {
             setSelectionError('No pages selected.');
             return;
         }
-
-        // Convert all selected page numbers to ensure they're numbers (not strings)
         const selectedPageNums = Array.from(selectedPages).map(p => Number(p)).sort((a, b) => a - b);
         const selectedSet = new Set(selectedPageNums);
 
-        // Check if pages are consecutive
         if (!areConsecutive(selectedPageNums)) {
             setSelectionError('Can only move consecutive pages together.');
             return;
         }
 
-        // Find current group(s) of selected pages
         const sourceGroups = new Set<string>();
         selectedPageNums.forEach(pageNum => {
             sourceGroups.add(pageAssignments[pageNum] || 'root');
         });
-
-        // Can only move if all selected pages are from the same group
         if (sourceGroups.size > 1) {
             setSelectionError('All selected pages must be from the same group.');
             return;
@@ -319,7 +303,6 @@ export default function ProductCatalogsPage() {
 
         const sourceGroup = Array.from(sourceGroups)[0];
 
-        // Can't move to the same group
         if (sourceGroup === targetPath) {
             setSelectionError('Already in this group.');
             return;
@@ -756,7 +739,7 @@ export default function ProductCatalogsPage() {
                         {/* Right-most - Hierarchy Settings Panel */}
                         <div className="w-80 bg-white border-l border-gray-200 overflow-auto flex flex-col">
                             {/* Document ID Section */}
-                            <div className="border-b border-gray-200 bg-gray-200 px-4 py-2 flex-shrink-0">
+                            <div className="border-b border-gray-200 bg-gray-200 px-4 pt-1 flex-shrink-0">
                                 <div className="flex items-center gap-2">
                                     <label className="text-sm font-semibold text-gray-800 flex-shrink-0">DOC ID</label>
                                     <input
@@ -769,7 +752,44 @@ export default function ProductCatalogsPage() {
                                 </div>
                             </div>
 
-                            {/* Color Palette Section */}
+                            {/* Document Name Section */}
+                            <div className="border-b border-gray-200 bg-gray-200 px-4 flex-shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <label className="text-sm font-semibold text-gray-800 flex-shrink-0">DOC NAME</label>
+                                    <input
+                                        type="text"
+                                        value={docName}
+                                        onChange={(e) => setDocName(e.target.value)}
+                                        placeholder="Document name for heading"
+                                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Font Style Section */}
+                            <div className="border-b border-gray-200 bg-gray-200 p-2 flex-shrink-0">
+                                <label className="text-sm font-semibold text-gray-800 block mb-2">Font Style</label>
+                                <select
+                                    value={fontStyle}
+                                    onChange={(e) => setFontStyle(e.target.value)}
+                                    className="w-full px-3 py-1 text-sm border border-gray-300 rounded"
+                                >
+                                    <option value="Arial">Arial</option>
+                                    <option value="Arial Rounded MT Bold">Arial Rounded</option>
+                                    <option value="Comic Sans MS">Comic Sans MS</option>
+                                    <option value="Courier New">Courier New</option>
+                                    <option value="Garamond">Garamond</option>
+                                    <option value="Georgia">Georgia</option>
+                                    <option value="Impact">Impact</option>
+                                    <option value="Lucida Console">Lucida Console</option>
+                                    <option value="Palatino Linotype">Palatino Linotype</option>
+                                    <option value="Segoe UI">Segoe UI</option>
+                                    <option value="Tahoma">Tahoma</option>
+                                    <option value="Times New Roman">Times New Roman</option>
+                                    <option value="Trebuchet MS">Trebuchet MS</option>
+                                    <option value="Verdana">Verdana</option>
+                                </select>
+                            </div>
                             <div className="border-b border-gray-200 bg-gray-200 p-2 flex-shrink-0">
                                 <h3 className="text-sm font-semibold text-gray-800">Select color palette</h3>
                                 <div className="mt-3 grid grid-cols-3 gap-2">
@@ -780,7 +800,7 @@ export default function ProductCatalogsPage() {
                                             value={themeInputs.primaryColor}
                                             onChange={(e) => handleThemeInputChange('primaryColor', e.target.value)}
                                             placeholder="Text"
-                                            className={`w-full rounded border px-3 py-2 text-sm ${themeErrors.primaryColor ? 'border-red-400' : 'border-gray-300'}`}
+                                            className={`w-full rounded border px-3 py-1 text-sm ${themeErrors.primaryColor ? 'border-red-400' : 'border-gray-300'}`}
                                         />
                                         {themeErrors.primaryColor && (
                                             <p className="mt-1 text-xs text-red-600">{themeErrors.primaryColor}</p>
@@ -793,7 +813,7 @@ export default function ProductCatalogsPage() {
                                             value={themeInputs.componentColor}
                                             onChange={(e) => handleThemeInputChange('componentColor', e.target.value)}
                                             placeholder="Component"
-                                            className={`w-full rounded border px-3 py-2 text-sm ${themeErrors.componentColor ? 'border-red-400' : 'border-gray-300'}`}
+                                            className={`w-full rounded border px-3 py-1 text-sm ${themeErrors.componentColor ? 'border-red-400' : 'border-gray-300'}`}
                                         />
                                         {themeErrors.componentColor && (
                                             <p className="mt-1 text-xs text-red-600">{themeErrors.componentColor}</p>
@@ -806,7 +826,7 @@ export default function ProductCatalogsPage() {
                                             value={themeInputs.backgroundColor}
                                             onChange={(e) => handleThemeInputChange('backgroundColor', e.target.value)}
                                             placeholder="Background"
-                                            className={`w-full rounded border px-3 py-2 text-sm ${themeErrors.backgroundColor ? 'border-red-400' : 'border-gray-300'}`}
+                                            className={`w-full rounded border px-3 py-1 text-sm ${themeErrors.backgroundColor ? 'border-red-400' : 'border-gray-300'}`}
                                         />
                                         {themeErrors.backgroundColor && (
                                             <p className="mt-1 text-xs text-red-600">{themeErrors.backgroundColor}</p>
@@ -816,7 +836,7 @@ export default function ProductCatalogsPage() {
                             </div>
 
                             {/* Buttons Section */}
-                            <div className="border-b border-gray-200 bg-gray-200 p-2 flex-shrink-0">
+                            <div className="border-b border-gray-200 bg-gray-200 px-2 pb-1 flex-shrink-0">
                                 <div className="flex items-center gap-2">
                                     <button
                                         type="button"
@@ -852,14 +872,11 @@ export default function ProductCatalogsPage() {
 
                             <div className="border-t-4 border-b border-gray-300 p-2 flex-shrink-0">
                                 <div className="mb-2">
-                                    <h3 className="text-sm font-semibold text-gray-800">Pages</h3>
+                                    <h3 className="text-sm font-semibold text-gray-800">Structure</h3>
                                 </div>
-                                <p className="text-xs text-gray-500">
-                                    Select & move · Click to rename
-                                </p>
                             </div>
 
-                            <div className="px-4 pt-3 pb-0 flex justify-end flex-shrink-0">
+                            <div className="px-4 pt-1 pb-0 flex justify-end flex-shrink-0">
                                 <button
                                     type="button"
                                     onClick={() => createNewGroup('root')}

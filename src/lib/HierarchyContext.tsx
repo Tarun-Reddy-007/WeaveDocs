@@ -16,10 +16,12 @@ export type ThemeColors = {
   primaryColor: string;
   componentColor: string;
   backgroundColor: string;
+  fontStyle?: string;
 };
 
 interface HierarchyContextType {
   documentId: string | null;
+  docName: string | null;
   pdfUrl: string | null;
   pageAssignments: PageAssignment;
   groupMetadata: GroupMetadata;
@@ -28,6 +30,7 @@ interface HierarchyContextType {
   themeColors: ThemeColors | null;
   setHierarchyData: (data: {
     documentId: string;
+    docName?: string;
     pdfUrl: string;
     pageAssignments: PageAssignment;
     groupMetadata: GroupMetadata;
@@ -43,6 +46,7 @@ const STORAGE_KEY = 'hierarchy_data';
 
 export function HierarchyProvider({ children }: { children: ReactNode }) {
   const [documentId, setDocumentId] = useState<string | null>(null);
+  const [docName, setDocName] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pageAssignments, setPageAssignments] = useState<PageAssignment>({});
   const [groupMetadata, setGroupMetadata] = useState<GroupMetadata>({});
@@ -59,6 +63,7 @@ export function HierarchyProvider({ children }: { children: ReactNode }) {
           const data = JSON.parse(stored);
           // Batch state updates
           setDocumentId(data.documentId);
+          setDocName(data.docName || null);
           setPdfUrl(data.pdfUrl);
           setPageAssignments(data.pageAssignments);
           setGroupMetadata(data.groupMetadata);
@@ -74,6 +79,7 @@ export function HierarchyProvider({ children }: { children: ReactNode }) {
 
   const setHierarchyData = (data: {
     documentId: string;
+    docName?: string;
     pdfUrl: string;
     pageAssignments: PageAssignment;
     groupMetadata: GroupMetadata;
@@ -82,6 +88,7 @@ export function HierarchyProvider({ children }: { children: ReactNode }) {
     themeColors?: ThemeColors | null;
   }) => {
     setDocumentId(data.documentId);
+    setDocName(data.docName || null);
     setPdfUrl(data.pdfUrl);
     setPageAssignments(data.pageAssignments);
     setGroupMetadata(data.groupMetadata);
@@ -103,6 +110,7 @@ export function HierarchyProvider({ children }: { children: ReactNode }) {
     <HierarchyContext.Provider
       value={{
         documentId,
+        docName,
         pdfUrl,
         pageAssignments,
         groupMetadata,
