@@ -5,8 +5,9 @@ import { usePathname } from 'next/navigation';
 
 export function Footer() {
   const pathname = usePathname();
+  const isPreviewRoute = pathname?.startsWith('/services/product-catalogs/preview/');
 
-  if (pathname === '/login' || pathname === '/signup') return null;
+  if (pathname === '/login' || pathname === '/signup' || isPreviewRoute) return null;
 
   const currentYear = new Date().getFullYear();
 

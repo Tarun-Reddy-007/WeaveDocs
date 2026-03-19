@@ -8,6 +8,7 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
+  const isPreviewRoute = pathname?.startsWith('/services/product-catalogs/preview/');
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -17,6 +18,8 @@ export function Navbar() {
 
   // Close mobile menu on route change
   useEffect(() => setIsOpen(false), [pathname]);
+
+  if (isPreviewRoute) return null;
 
   return (
     <nav
