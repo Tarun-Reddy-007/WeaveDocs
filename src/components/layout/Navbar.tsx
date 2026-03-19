@@ -27,7 +27,7 @@ export function Navbar() {
         scrolled ? 'shadow-[0_1px_0_0_#000]' : 'border-b border-black'
       }`}
     >
-      <div className="max-w-6xl mx-auto px-6">
+      <div className="w-full px-3 sm:px-6">
         <div className="flex items-center justify-between h-14">
 
           {/* Logo */}
@@ -94,7 +94,7 @@ export function Navbar() {
           isOpen ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="max-w-6xl mx-auto px-6 py-6 flex flex-col gap-5">
+        <div className="w-full px-3 sm:px-6 py-6 flex flex-col gap-5">
           {[
             { href: '/services', label: 'Services' },
             { href: '/docs', label: 'Docs' },
