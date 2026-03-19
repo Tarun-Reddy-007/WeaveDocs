@@ -124,7 +124,7 @@ export function PDFViewer({ pdfUrl, currentPage, onTotalPagesChange, fitToContai
   return (
     <div
       ref={containerRef}
-      className={`w-full h-full bg-transparent p-4 flex ${fitToContainer ? 'items-center justify-center overflow-hidden' : 'flex-col items-start overflow-y-auto overflow-x-hidden'}`}
+      className={`w-full h-full bg-transparent flex ${fitToContainer ? 'items-center justify-center overflow-hidden' : 'flex-col items-start overflow-y-auto overflow-x-hidden'}`}
     >
       {isLoading && <p className="text-center text-gray-500">Loading PDF...</p>}
       {pdfUrl && containerSize.height > 0 && !error && (

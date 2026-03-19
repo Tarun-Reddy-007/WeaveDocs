@@ -682,15 +682,15 @@ export default function PreviewPage() {
   return (
     <div className="flex flex-col h-screen" style={{ color: primaryColor, backgroundColor, fontFamily: fontStyle, ['--component-color' as any]: componentColor }}>
       {/* Header */}
-      <div className="px-16 py-4 pt-8">
+      <div className="px-16 pb-5 pt-6">
         <div className="max-w-full mx-auto">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <h1 className="text-4xl font-bold" style={{ color: primaryColor, fontFamily: fontStyle }}>
                 {docName || (pdfFileName ? pdfFileName.replace(/\.pdf$/i, '') : 'Catalog')}
               </h1>
-              <div className="flex items-center justify-between mt-4 gap-4">
-                    <p className="text-xl " style={{ color: primaryColor, fontFamily: fontStyle }}>{documentId}</p>
+              <div className="flex items-center justify-between mt-1 gap-4">
+                    <p className="text-l " style={{ color: primaryColor, fontFamily: fontStyle }}>{documentId}</p>
                     <div className="flex items-center gap-4">
                       <button
                         onClick={handleCopyLink}
@@ -747,9 +747,9 @@ export default function PreviewPage() {
         </div>
 
         {/* Right Content - PDF and Title */}
-        <div className="flex-1 flex flex-col overflow-hidden py-4 px-16" style={{ backgroundColor, fontFamily: fontStyle }}>
+        <div className="flex-1 flex flex-col overflow-hidden py-0 px-8" style={{ backgroundColor, fontFamily: fontStyle }}>
           {/* Title Section */}
-          <div className="mb-6">
+          <div>
             <h2 className="text-3xl font-bold" style={{ color: primaryColor, fontFamily: fontStyle }}>
               {pageTitles[currentPageNum - 1] || `Page ${currentPageNum}`}
             </h2>
