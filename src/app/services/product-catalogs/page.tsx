@@ -2,76 +2,94 @@
 
 import { useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Sidebar } from '@/components/layout/sidebar/Sidebar';
 import { useHierarchy } from '@/lib/HierarchyContext';
 
-type PageAssignment = {
-  [pageNum: number]: string; // path like "" (root), "Parent 1", "Parent 1/Child 1"
-};
-
-type GroupMetadata = {
-  [path: string]: {
-    title: string;
-  };
-};
+type PageAssignment = { [pageNum: number]: string };
+type GroupMetadata = { [path: string]: { title: string } };
 
 const PDFViewer = dynamic(() => import('@/components/PDFViewer').then(mod => mod.PDFViewer), { ssr: false });
 const PDFThumbnail = dynamic(() => import('@/components/PDFViewer').then(mod => mod.PDFThumbnail), { ssr: false });
 
 const sidebarItems = [
-  {
-    label: 'Catalogs',
-    href: '/services/product-catalogs',
-  },
-  {
-    label: 'Analytics',
-    href: '/services/product-catalogs/analytics',
-  },
+  { label: 'Catalogs', href: '/services/product-catalogs' },
+  { label: 'Analytics', href: '/services/product-catalogs/analytics' },
 ];
 
-
-
-// Get pages assigned to a specific path
-const getPagesInPath = (path: string, assignments: PageAssignment): number[] => {
-  return Object.entries(assignments)
+const getPagesInPath = (path: string, assignments: PageAssignment): number[] =>
+  Object.entries(assignments)
     .filter(([, p]) => p === path)
-    .map(([pageNum]) => parseInt(pageNum, 10))
+    .map(([n]) => parseInt(n, 10))
     .sort((a, b) => a - b);
-};
 
-// Get direct children of a path (only groups from metadata)
 const getChildPaths = (parentPath: string, metadata: GroupMetadata): string[] => {
   const prefix = parentPath === 'root' ? '' : `${parentPath}/`;
   const children = new Set<string>();
-  
-  Object.keys(metadata).forEach((path) => {
-    if (path !== 'root') {
-      if (prefix === '' && !path.includes('/')) {
-        // Top-level children
-        children.add(path);
-      } else if (prefix && path.startsWith(prefix) && !path.slice(prefix.length).includes('/')) {
-        // Direct children of this parent
-        children.add(path);
-      }
-    }
+  Object.keys(metadata).forEach(path => {
+    if (path === 'root') return;
+    if (prefix === '' && !path.includes('/')) children.add(path);
+    else if (prefix && path.startsWith(prefix) && !path.slice(prefix.length).includes('/')) children.add(path);
   });
-
   return Array.from(children).sort();
 };
 
+// ── SVG Icons ────────────────────────────────────────────────────────────────
+const IconMoveDown = () => (
+  <svg viewBox="0 0 12 12" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 1v8M3 6l3 3 3-3" />
+  </svg>
+);
+const IconPlus = () => (
+  <svg viewBox="0 0 12 12" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+    <path d="M6 2v8M2 6h8" />
+  </svg>
+);
+const IconX = () => (
+  <svg viewBox="0 0 12 12" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+    <path d="M2 2l8 8M10 2L2 10" />
+  </svg>
+);
+const IconChevron = ({ open }: { open: boolean }) => (
+  <svg viewBox="0 0 10 10" className={`w-2.5 h-2.5 transition-transform duration-150 ${open ? 'rotate-90' : ''}`} fill="currentColor">
+    <path d="M3 1.5l4 3.5-4 3.5V1.5z" />
+  </svg>
+);
+const IconFolder = ({ empty }: { empty?: boolean }) => (
+  <svg viewBox="0 0 14 14" className={`w-3.5 h-3.5 flex-shrink-0 ${empty ? 'text-red-300' : 'text-gray-500'}`} fill="currentColor">
+    <path d="M1 3.5A1 1 0 012 2.5h3.5L7 4.5h5a1 1 0 011 1v5a1 1 0 01-1 1H2a1 1 0 01-1-1v-6z" />
+  </svg>
+);
+const IconPage = () => (
+  <svg viewBox="0 0 12 14" className="w-3 h-3.5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.2">
+    <path d="M2 1h6l2 2v10H2V1z" strokeLinejoin="round" />
+    <path d="M7 1v3h3" strokeLinejoin="round" />
+    <path d="M4 6h4M4 8h4M4 10h2" strokeLinecap="round" />
+  </svg>
+);
+const IconEye = () => (
+  <svg viewBox="0 0 14 14" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.4">
+    <path d="M1 7s2-4 6-4 6 4 6 4-2 4-6 4-6-4-6-4z" />
+    <circle cx="7" cy="7" r="1.5" />
+  </svg>
+);
+const IconPublish = () => (
+  <svg viewBox="0 0 14 14" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M7 9V2M4 5l3-3 3 3" />
+    <path d="M2 11h10" />
+  </svg>
+);
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function ProductCatalogsPage() {
   const { setHierarchyData } = useHierarchy();
-  
+
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pageTitles, setPageTitles] = useState<string[]>([]);
-  
-  // New simplified state
   const [pageAssignments, setPageAssignments] = useState<PageAssignment>({});
-  const [groupMetadata, setGroupMetadata] = useState<GroupMetadata>({ 'root': { title: 'All Pages' } });
+  const [groupMetadata, setGroupMetadata] = useState<GroupMetadata>({ root: { title: 'All Pages' } });
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['root']));
   const [selectedPages, setSelectedPages] = useState<Set<number>>(new Set());
   const [selectionError, setSelectionError] = useState<string | null>(null);
@@ -79,20 +97,16 @@ export default function ProductCatalogsPage() {
   const [tempTitle, setTempTitle] = useState('');
   const [hierarchyReady, setHierarchyReady] = useState(false);
   const [documentId, setDocumentId] = useState('');
-  const [themeInputs, setThemeInputs] = useState({
-    primaryColor: '',
-    componentColor: '',
-    backgroundColor: '',
-  });
+  const [themeInputs, setThemeInputs] = useState({ primaryColor: '', componentColor: '', backgroundColor: '' });
   const [themeErrors, setThemeErrors] = useState<Record<string, string>>({});
-  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isValidHex = (value: string) => /^#([0-9A-Fa-f]{6})$/.test(value.trim());
+  const isValidHex = (v: string) => /^#([0-9A-Fa-f]{6})$/.test(v.trim());
   const hasAllThemeColors =
     isValidHex(themeInputs.primaryColor) &&
     isValidHex(themeInputs.componentColor) &&
     isValidHex(themeInputs.backgroundColor);
+  const canPublish = documentId.length > 6 && hasAllThemeColors;
 
   const persistHierarchyData = () => {
     setHierarchyData({
@@ -112,36 +126,17 @@ export default function ProductCatalogsPage() {
     });
   };
 
-  const handleCreateClick = () => {
-    fileInputRef.current?.click();
-  };
-
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type === 'application/pdf') {
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl);
-      }
-
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
       const url = URL.createObjectURL(file);
-      setPdfFile(file);
-      setPdfUrl(url);
-      setCurrentPage(1);
-      setTotalPages(0);
-      setPageTitles([]);
-      setPageAssignments({});
-      setGroupMetadata({});
-      setExpandedPaths(new Set());
-      setEditingPath(null);
-      setSelectedPages(new Set());
-      setSelectionError(null);
-      setHierarchyReady(false);
-      setDocumentId('');
-      setThemeInputs({
-        primaryColor: '',
-        componentColor: '',
-        backgroundColor: '',
-      });
+      setPdfFile(file); setPdfUrl(url); setCurrentPage(1); setTotalPages(0);
+      setPageTitles([]); setPageAssignments({}); setGroupMetadata({});
+      setExpandedPaths(new Set()); setEditingPath(null);
+      setSelectedPages(new Set()); setSelectionError(null);
+      setHierarchyReady(false); setDocumentId('');
+      setThemeInputs({ primaryColor: '', componentColor: '', backgroundColor: '' });
       setThemeErrors({});
     } else {
       alert('Please select a valid PDF file');
@@ -150,243 +145,96 @@ export default function ProductCatalogsPage() {
 
   const handleTotalPagesLoaded = (total: number) => {
     setTotalPages(total);
-
     if (!hierarchyReady) {
-      setPageTitles(Array.from({ length: total }, (_, i) => `Title ${i + 1}`));
-      
-      // Initialize all pages at root
-      const initialAssignments: PageAssignment = {};
-      for (let i = 1; i <= total; i++) {
-        initialAssignments[i] = 'root';
-      }
-      
-      setPageAssignments(initialAssignments);
-      setGroupMetadata({ 'root': { title: 'All Pages' } });
+      setPageTitles(Array.from({ length: total }, (_, i) => `Page ${i + 1}`));
+      const init: PageAssignment = {};
+      for (let i = 1; i <= total; i++) init[i] = 'root';
+      setPageAssignments(init);
+      setGroupMetadata({ root: { title: 'All Pages' } });
       setExpandedPaths(new Set(['root']));
-      setSelectedPages(new Set());
-      setSelectionError(null);
+      setSelectedPages(new Set()); setSelectionError(null);
       setHierarchyReady(true);
     }
   };
 
-  const handlePageTitleChange = (pageNum: number, value: string) => {
-    setPageTitles((prev) => prev.map((title, index) => (
-      index === pageNum - 1 ? value : title
-    )));
-  };
+  const handlePageTitleChange = (pageNum: number, value: string) =>
+    setPageTitles(prev => prev.map((t, i) => i === pageNum - 1 ? value : t));
 
-  // Create a new group/folder
-  const createNewGroup = (parentPath: string, groupName?: string) => {
-    const title = groupName || `Group ${Object.keys(groupMetadata).filter(p => p !== 'root').length + 1}`;
-    const newPath = parentPath === 'root' 
-      ? title 
-      : `${parentPath}/${title}`;
-    
-    setGroupMetadata(prev => ({
-      ...prev,
-      [newPath]: { title }
-    }));
-    
+  const createNewGroup = (parentPath: string) => {
+    const title = `Group ${Object.keys(groupMetadata).filter(p => p !== 'root').length + 1}`;
+    const newPath = parentPath === 'root' ? title : `${parentPath}/${title}`;
+    setGroupMetadata(prev => ({ ...prev, [newPath]: { title } }));
     setExpandedPaths(prev => new Set([...prev, newPath]));
   };
 
-  // Rename a group
   const renameGroup = (path: string, newTitle: string) => {
-    if (path === 'root') return; // Can't rename root
-    
+    if (path === 'root') return;
     const parentPath = path.substring(0, path.lastIndexOf('/')) || 'root';
-    const oldPath = path;
-    const newPath = parentPath === 'root' 
-      ? newTitle 
-      : `${parentPath}/${newTitle}`;
-    
+    const newPath = parentPath === 'root' ? newTitle : `${parentPath}/${newTitle}`;
     setGroupMetadata(prev => {
-      const updated = { ...prev };
-      const metadata = updated[oldPath];
-      delete updated[oldPath];
-      updated[newPath] = { ...metadata, title: newTitle };
-      return updated;
+      const u = { ...prev }; const m = u[path]; delete u[path];
+      u[newPath] = { ...m, title: newTitle }; return u;
     });
-    
-    // Reassign all pages that were in oldPath to newPath
     setPageAssignments(prev => {
-      const updated = { ...prev };
-      Object.entries(prev).forEach(([pageNum, p]) => {
-        if (p === oldPath) {
-          updated[parseInt(pageNum, 10)] = newPath;
-        }
-      });
-      return updated;
+      const u = { ...prev };
+      Object.entries(prev).forEach(([n, p]) => { if (p === path) u[parseInt(n)] = newPath; });
+      return u;
     });
-    
-    // Update expanded paths
     setExpandedPaths(prev => {
-      const updated = new Set(prev);
-      if (updated.has(oldPath)) {
-        updated.delete(oldPath);
-        updated.add(newPath);
-      }
-      return updated;
+      const u = new Set(prev);
+      if (u.has(path)) { u.delete(path); u.add(newPath); }
+      return u;
     });
   };
 
-  // Delete/unwrap a group and move its pages to parent
   const deleteGroup = (path: string) => {
     if (path === 'root') return;
-    
     const parentPath = path.substring(0, path.lastIndexOf('/')) || 'root';
-    
-    // Reassign all pages in this group AND all descendants to parent
     setPageAssignments(prev => {
-      const updated = { ...prev };
-      Object.entries(prev).forEach(([pageNum, assignedPath]) => {
-        // Reassign if assigned to deleted path or any descendant of it
-        if (assignedPath === path || assignedPath.startsWith(path + '/')) {
-          updated[parseInt(pageNum, 10)] = parentPath;
-        }
+      const u = { ...prev };
+      Object.entries(prev).forEach(([n, p]) => {
+        if (p === path || p.startsWith(path + '/')) u[parseInt(n)] = parentPath;
       });
-      return updated;
+      return u;
     });
-    
-    // Remove group metadata and all nested child groups
     setGroupMetadata(prev => {
-      const updated = { ...prev };
-      // Delete the group itself
-      delete updated[path];
-      
-      // Delete all descendant groups
-      const childrenToDelete = Object.keys(updated).filter(key => 
-        key.startsWith(path + '/')
-      );
-      childrenToDelete.forEach(child => {
-        delete updated[child];
-      });
-      
-      return updated;
+      const u = { ...prev }; delete u[path];
+      Object.keys(u).filter(k => k.startsWith(path + '/')).forEach(k => delete u[k]);
+      return u;
     });
-    
-    // Remove from expanded
     setExpandedPaths(prev => {
-      const updated = new Set(prev);
-      updated.delete(path);
-      // Also remove any expanded child paths
-      const toRemove = Array.from(updated).filter(expandedPath => 
-        expandedPath.startsWith(path + '/')
-      );
-      toRemove.forEach(expandedPath => updated.delete(expandedPath));
-      return updated;
+      const u = new Set(prev); u.delete(path);
+      Array.from(u).filter(p => p.startsWith(path + '/')).forEach(p => u.delete(p));
+      return u;
     });
   };
 
-  // Check if pages are consecutive
-  const areConsecutive = (pageNums: number[]): boolean => {
-    if (pageNums.length === 0) return true;
-    const sorted = [...pageNums].sort((a, b) => a - b);
-    for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i] !== sorted[i - 1] + 1) return false;
-    }
-    return true;
+  const areConsecutive = (nums: number[]) => {
+    const s = [...nums].sort((a, b) => a - b);
+    return s.every((n, i) => i === 0 || n === s[i - 1] + 1);
   };
 
-  // Move selected pages to a target path
-  const moveSelectedPages = (targetPath: string) => {
-    if (selectedPages.size === 0) {
-      setSelectionError('No pages selected.');
-      return;
-    }
-    
-    // Convert all selected page numbers to ensure they're numbers (not strings)
-    const selectedPageNums = Array.from(selectedPages).map(p => Number(p)).sort((a, b) => a - b);
-    const selectedSet = new Set(selectedPageNums);
-    
-    // Check if pages are consecutive
-    if (!areConsecutive(selectedPageNums)) {
-      setSelectionError('Can only move consecutive pages together.');
-      return;
-    }
-    
-    // Find current group(s) of selected pages
-    const sourceGroups = new Set<string>();
-    selectedPageNums.forEach(pageNum => {
-      sourceGroups.add(pageAssignments[pageNum] || 'root');
-    });
-    
-    // Can only move if all selected pages are from the same group
-    if (sourceGroups.size > 1) {
-      setSelectionError('All selected pages must be from the same group.');
-      return;
-    }
-    
-    const sourceGroup = Array.from(sourceGroups)[0];
-    
-    // Can't move to the same group
-    if (sourceGroup === targetPath) {
-      setSelectionError('Already in this group.');
-      return;
-    }
-
-    const nextAssignments: PageAssignment = { ...pageAssignments };
-    selectedSet.forEach((pageNum) => {
-      nextAssignments[pageNum] = targetPath;
-    });
-
-    const flattenedSequence = getFlattenedPageSequence('root', nextAssignments, groupMetadata);
-    const preservesGlobalSequence =
-      flattenedSequence.length === totalPages &&
-      flattenedSequence.every((pageNum, index) => pageNum === index + 1);
-
-    if (!preservesGlobalSequence) {
-      setSelectionError('Cannot move - would break the global page sequence.');
-      return;
-    }
-
-    setPageAssignments(prev => {
-      const updated = { ...prev };
-      selectedPageNums.forEach(pageNum => {
-        updated[pageNum] = targetPath;
-      });
-      return updated;
-    });
-    
-    setSelectedPages(new Set());
-    setSelectionError(null);
-  };
-
-  // Get minimum page number in a group (recursive)
   const getMinPageInPath = (path: string, assignments: PageAssignment, metadata: GroupMetadata): number => {
-    const directPages = getPagesInPath(path, assignments);
-    if (directPages.length > 0) return Math.min(...directPages);
-    
-    // Check child groups
-    const childPaths = getChildPaths(path, metadata);
-    const childMins = childPaths
-      .map(childPath => getMinPageInPath(childPath, assignments, metadata))
-      .filter(n => !isNaN(n));
-    
-    return childMins.length > 0 ? Math.min(...childMins) : Infinity;
+    const direct = getPagesInPath(path, assignments);
+    if (direct.length > 0) return Math.min(...direct);
+    const mins = getChildPaths(path, metadata)
+      .map(cp => getMinPageInPath(cp, assignments, metadata))
+      .filter(isFinite);
+    return mins.length > 0 ? Math.min(...mins) : Infinity;
   };
 
   const getOrderedItems = (parentPath: string, assignments: PageAssignment, metadata: GroupMetadata) => {
-    const childPaths = getChildPaths(parentPath, metadata);
-    const pages = getPagesInPath(parentPath, assignments);
     const items: Array<{ type: 'page' | 'group'; pageNum?: number; path?: string; minPage?: number; isEmpty?: boolean }> = [];
-
-    pages.forEach(pageNum => {
-      items.push({ type: 'page', pageNum, minPage: pageNum, isEmpty: false });
+    getPagesInPath(parentPath, assignments).forEach(n => items.push({ type: 'page', pageNum: n, minPage: n }));
+    getChildPaths(parentPath, metadata).forEach(cp => {
+      const minPage = getMinPageInPath(cp, assignments, metadata);
+      items.push({ type: 'group', path: cp, minPage, isEmpty: minPage === Infinity });
     });
-
-    childPaths.forEach(childPath => {
-      const minPage = getMinPageInPath(childPath, assignments, metadata);
-      const isEmpty = minPage === Infinity;
-      items.push({ type: 'group', path: childPath, minPage, isEmpty });
-    });
-
     items.sort((a, b) => {
       if (a.isEmpty && !b.isEmpty) return -1;
       if (!a.isEmpty && b.isEmpty) return 1;
-      return (a.minPage || Infinity) - (b.minPage || Infinity);
+      return (a.minPage ?? Infinity) - (b.minPage ?? Infinity);
     });
-
     return items;
   };
 
@@ -394,204 +242,188 @@ export default function ProductCatalogsPage() {
     parentPath: string,
     assignments: PageAssignment,
     metadata: GroupMetadata
-  ): number[] => {
-    return getOrderedItems(parentPath, assignments, metadata).flatMap((item) => {
-      if (item.type === 'page') {
-        return item.pageNum ? [item.pageNum] : [];
-      }
+  ): number[] =>
+    getOrderedItems(parentPath, assignments, metadata).flatMap(item =>
+      item.type === 'page'
+        ? (item.pageNum ? [item.pageNum] : [])
+        : (item.path ? getFlattenedPageSequence(item.path, assignments, metadata) : [])
+    );
 
-      return item.path ? getFlattenedPageSequence(item.path, assignments, metadata) : [];
-    });
+  const moveSelectedPages = (targetPath: string) => {
+    if (selectedPages.size === 0) { setSelectionError('No pages selected.'); return; }
+    const nums = Array.from(selectedPages).map(Number).sort((a, b) => a - b);
+    if (!areConsecutive(nums)) { setSelectionError('Select only consecutive pages.'); return; }
+    const sourceGroups = new Set(nums.map(n => pageAssignments[n] || 'root'));
+    if (sourceGroups.size > 1) { setSelectionError('All selected pages must be from the same group.'); return; }
+    if (Array.from(sourceGroups)[0] === targetPath) { setSelectionError('Already in this group.'); return; }
+    const next: PageAssignment = { ...pageAssignments };
+    nums.forEach(n => { next[n] = targetPath; });
+    const seq = getFlattenedPageSequence('root', next, groupMetadata);
+    if (seq.length !== totalPages || !seq.every((n, i) => n === i + 1)) {
+      setSelectionError('Cannot move — would break the page sequence.'); return;
+    }
+    setPageAssignments(next);
+    setSelectedPages(new Set()); setSelectionError(null);
   };
 
-  // Render the hierarchy tree from flat data
-  const renderHierarchy = (parentPath: string = 'root', depth: number = 0): React.ReactNode => {
+  const handleThemeInputChange = (
+    key: 'primaryColor' | 'componentColor' | 'backgroundColor',
+    value: string
+  ) => {
+    setThemeInputs(prev => ({ ...prev, [key]: value }));
+    if (!value.trim()) { setThemeErrors(prev => ({ ...prev, [key]: 'Required' })); return; }
+    if (!isValidHex(value)) { setThemeErrors(prev => ({ ...prev, [key]: 'Use #RRGGBB' })); return; }
+    setThemeErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
+  };
+
+  const renderHierarchy = (parentPath = 'root', depth = 0): React.ReactNode => {
     const items = getOrderedItems(parentPath, pageAssignments, groupMetadata);
-    
     return (
       <div>
-        {items.map((item) => {
+        {items.map(item => {
           if (item.type === 'page') {
             const pageNum = item.pageNum!;
-            const defaultTitle = `Title ${pageNum}`;
-            const pageTitle = pageTitles[pageNum - 1] !== undefined ? pageTitles[pageNum - 1] : defaultTitle;
+            const title = pageTitles[pageNum - 1] ?? `Page ${pageNum}`;
             const isSelected = selectedPages.has(pageNum);
             const isEditing = editingPath === `page-${pageNum}`;
-            
+
             return (
-              <div key={`page-${pageNum}`} style={{ paddingLeft: `${depth * 16}px` }} className="group">
-                <div className={`flex items-center gap-2 py-1 px-2 rounded ${isSelected ? 'bg-blue-100' : 'hover:bg-gray-100'} cursor-pointer`}>
+              <div
+                key={`page-${pageNum}`}
+                style={{ paddingLeft: `${depth * 12 + 10}px` }}
+                className={`group flex items-center gap-2 py-[6px] pr-3 border-b border-gray-100 transition-colors duration-100 ${
+                  isSelected ? 'bg-gray-100' : 'hover:bg-gray-50'
+                }`}
+              >
+                {/* Custom checkbox */}
+                <div className="relative flex-shrink-0">
                   <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={(e) => {
+                    type="checkbox" checked={isSelected} id={`chk-${pageNum}`}
+                    onChange={e => {
                       if (e.target.checked) {
-                        const newSelection = new Set([...selectedPages, pageNum]);
-                        const pageArray = Array.from(newSelection).sort((a, b) => a - b);
-                        if (!areConsecutive(pageArray)) {
-                          setSelectionError('Select only consecutive pages.');
-                          return;
+                        const next = new Set([...selectedPages, pageNum]);
+                        if (!areConsecutive(Array.from(next).sort((a, b) => a - b))) {
+                          setSelectionError('Select only consecutive pages.'); return;
                         }
-                        setSelectedPages(newSelection);
-                        setSelectionError(null);
+                        setSelectedPages(next); setSelectionError(null);
                       } else {
-                        setSelectedPages(prev => {
-                          const next = new Set(prev);
-                          next.delete(pageNum);
-                          return next;
-                        });
+                        setSelectedPages(prev => { const n = new Set(prev); n.delete(pageNum); return n; });
                         setSelectionError(null);
                       }
                     }}
-                    className="flex-shrink-0 h-4 w-4"
+                    className="peer sr-only"
                   />
-                  <span className="w-4 text-center text-gray-400 text-xs">📄</span>
-                  <span className="bg-black text-white text-xs font-medium w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">{pageNum}</span>
-                  {isEditing ? (
-                    <input
-                      autoFocus
-                      value={tempTitle}
-                      onChange={(e) => setTempTitle(e.target.value)}
-                      onBlur={() => {
-                        if (tempTitle.trim()) {
-                          handlePageTitleChange(pageNum, tempTitle);
-                        }
-                        setEditingPath(null);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          if (tempTitle.trim()) handlePageTitleChange(pageNum, tempTitle);
-                          setEditingPath(null);
-                        }
-                        if (e.key === 'Escape') setEditingPath(null);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex-1 bg-white border border-blue-400 rounded px-1 py-0 text-sm text-black"
-                    />
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setEditingPath(`page-${pageNum}`);
-                        setTempTitle(pageTitle);
-                      }}
-                      className="flex-1 text-left text-sm text-gray-900 hover:text-black truncate"
-                    >
-                      {pageTitle}
-                    </button>
-                  )}
+                  <label
+                    htmlFor={`chk-${pageNum}`}
+                    className="w-3.5 h-3.5 border border-gray-300 peer-checked:border-black peer-checked:bg-black flex items-center justify-center cursor-pointer transition-all duration-100 block flex-shrink-0"
+                  >
+                    {isSelected && (
+                      <svg viewBox="0 0 10 10" className="w-2 h-2 text-white" fill="none">
+                        <path d="M1.5 5l2.5 2.5 4.5-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </label>
                 </div>
+
+                <IconPage />
+                <span className="text-[10px] font-mono text-gray-400 flex-shrink-0 w-4 text-center">{pageNum}</span>
+
+                {isEditing ? (
+                  <input
+                    autoFocus value={tempTitle}
+                    onChange={e => setTempTitle(e.target.value)}
+                    onBlur={() => { if (tempTitle.trim()) handlePageTitleChange(pageNum, tempTitle); setEditingPath(null); }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { if (tempTitle.trim()) handlePageTitleChange(pageNum, tempTitle); setEditingPath(null); }
+                      if (e.key === 'Escape') setEditingPath(null);
+                    }}
+                    className="flex-1 border-b border-black bg-transparent text-[11px] text-black outline-none py-0.5 font-['DM_Sans',sans-serif]"
+                  />
+                ) : (
+                  <button
+                    onClick={() => { setEditingPath(`page-${pageNum}`); setTempTitle(title); }}
+                    className="flex-1 text-left text-[11px] text-black hover:text-black truncate transition-colors font-medium"
+                  >
+                    {title}
+                  </button>
+                )}
               </div>
             );
           }
-          
-          // Type: group
+
           const path = item.path!;
-          const groupTitle = groupMetadata[path]?.title || 'Unnamed Group';
+          const groupTitle = groupMetadata[path]?.title ?? 'Unnamed';
           const childPages = getPagesInPath(path, pageAssignments);
           const subGroups = getChildPaths(path, groupMetadata);
           const hasChildren = subGroups.length > 0 || childPages.length > 0;
-          const isGroupExpanded = expandedPaths.has(path);
-          const isEmpty = childPages.length === 0 && subGroups.length === 0;
+          const isExpanded = expandedPaths.has(path);
+          const isEmpty = item.isEmpty;
           const isEditing = editingPath === path;
-          
+
           return (
             <div key={path}>
-              <div style={{ paddingLeft: `${depth * 16}px` }} className={`group ${isEmpty ? 'bg-red-50' : ''}`}>
-                <div className={`flex items-center gap-1 py-1 px-2 rounded ${isEmpty ? 'border border-red-200' : 'hover:bg-gray-100'}`}>
-                  <div className="flex items-center gap-1">
-                    {hasChildren && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setExpandedPaths(prev => {
-                            const next = new Set(prev);
-                            if (next.has(path)) {
-                              next.delete(path);
-                            } else {
-                              next.add(path);
-                            }
-                            return next;
-                          });
-                        }}
-                        className="flex-shrink-0 w-5 flex items-center justify-center text-gray-400 hover:text-gray-600"
-                      >
-                        {isGroupExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                      </button>
-                    )}
-                    {!hasChildren && <span className="w-5"></span>}
-                  </div>
-                  
-                  <span className={`text-sm ${isEmpty ? 'text-red-400' : 'text-gray-400'}`}>📁</span>
-                  
-                  {isEditing ? (
-                    <input
-                      autoFocus
-                      value={tempTitle}
-                      onChange={(e) => setTempTitle(e.target.value)}
-                      onBlur={() => {
-                        if (tempTitle.trim()) {
-                          renameGroup(path, tempTitle);
-                        }
-                        setEditingPath(null);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          if (tempTitle.trim()) renameGroup(path, tempTitle);
-                          setEditingPath(null);
-                        }
-                        if (e.key === 'Escape') setEditingPath(null);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex-1 bg-white border border-blue-400 rounded px-1 py-0 text-sm text-black"
-                    />
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setEditingPath(path);
-                        setTempTitle(groupTitle);
-                      }}
-                      className="flex-1 text-left text-sm font-medium text-gray-900 hover:text-black truncate"
-                    >
-                      {groupTitle}
-                      {isEmpty && <span className="text-red-500 ml-1 font-normal text-xs">✕ empty</span>}
-                    </button>
-                  )}
-                  
-                  <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => moveSelectedPages(path)}
-                      title="Move selected here"
-                      disabled={selectedPages.size === 0}
-                      className="p-1 rounded hover:bg-green-100 text-xs text-gray-600 hover:text-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      ⬇️
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => createNewGroup(path)}
-                      title="Add child"
-                      className="p-1 rounded hover:bg-gray-200 text-xs text-gray-600 hover:text-gray-800"
-                    >
-                      ➕
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteGroup(path)}
-                      title="Remove group"
-                      className="p-1 rounded hover:bg-red-100 text-xs text-gray-600 hover:text-red-600"
-                    >
-                      ✕
-                    </button>
-                  </div>
+              <div
+                style={{ paddingLeft: `${depth * 12 + 6}px` }}
+                className={`group flex items-center gap-1.5 py-[6px] pr-2 border-b transition-colors duration-100 ${
+                  isEmpty ? 'border-red-100 bg-red-50/30' : 'border-gray-100 hover:bg-gray-50'
+                }`}
+              >
+                <button
+                  onClick={() => setExpandedPaths(prev => {
+                    const n = new Set(prev); n.has(path) ? n.delete(path) : n.add(path); return n;
+                  })}
+                  className="flex-shrink-0 w-4 h-4 flex items-center justify-center text-gray-400 hover:text-black transition-colors"
+                >
+                  {hasChildren ? <IconChevron open={isExpanded} /> : <span className="w-2.5" />}
+                </button>
+
+                <IconFolder empty={isEmpty} />
+
+                {isEditing ? (
+                  <input
+                    autoFocus value={tempTitle}
+                    onChange={e => setTempTitle(e.target.value)}
+                    onBlur={() => { if (tempTitle.trim()) renameGroup(path, tempTitle); setEditingPath(null); }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { if (tempTitle.trim()) renameGroup(path, tempTitle); setEditingPath(null); }
+                      if (e.key === 'Escape') setEditingPath(null);
+                    }}
+                    className="flex-1 border-b border-black bg-transparent text-[11px] font-semibold text-black outline-none py-0.5 font-['DM_Sans',sans-serif]"
+                  />
+                ) : (
+                  <button
+                    onClick={() => { setEditingPath(path); setTempTitle(groupTitle); }}
+                    className="flex-1 text-left text-[11px] font-semibold text-black hover:text-black truncate transition-colors"
+                  >
+                    {groupTitle}
+                    {isEmpty && <span className="ml-1.5 text-[10px] font-normal text-red-400">empty</span>}
+                  </button>
+                )}
+
+                {/* Group action icons — visible on hover */}
+                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 flex-shrink-0 transition-opacity duration-150">
+                  <button
+                    onClick={() => moveSelectedPages(path)} disabled={selectedPages.size === 0}
+                    title="Move selected pages here"
+                    className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-black hover:bg-gray-100 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <IconMoveDown />
+                  </button>
+                  <button
+                    onClick={() => createNewGroup(path)} title="Add child group"
+                    className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
+                  >
+                    <IconPlus />
+                  </button>
+                  <button
+                    onClick={() => deleteGroup(path)} title="Remove group"
+                    className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <IconX />
+                  </button>
                 </div>
               </div>
-              
-              {isGroupExpanded && hasChildren && (
-                <div>
-                  {renderHierarchy(path, depth + 1)}
-                </div>
-              )}
+              {isExpanded && hasChildren && renderHierarchy(path, depth + 1)}
             </div>
           );
         })}
@@ -599,99 +431,74 @@ export default function ProductCatalogsPage() {
     );
   };
 
-  const handlePreviousPage = () => {
-    setCurrentPage(prev => Math.max(prev - 1, 1));
-  };
-
-  const handleNextPage = () => {
-    setCurrentPage(prev => (prev < totalPages ? prev + 1 : prev));
-  };
-
-  const handleThemeInputChange = (key: 'primaryColor' | 'componentColor' | 'backgroundColor', value: string) => {
-    setThemeInputs(prev => ({ ...prev, [key]: value }));
-
-    if (!value.trim()) {
-      setThemeErrors(prev => ({ ...prev, [key]: 'Color is required.' }));
-      return;
-    }
-
-    if (!isValidHex(value)) {
-      setThemeErrors(prev => ({ ...prev, [key]: 'Use a strict hex color like #1A2B3C.' }));
-      return;
-    }
-
-    setThemeErrors(prev => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
-  };
+  const themeFields: {
+    key: 'primaryColor' | 'componentColor' | 'backgroundColor';
+    label: string;
+  }[] = [
+    { key: 'primaryColor', label: 'Text' },
+    { key: 'componentColor', label: 'Component' },
+    { key: 'backgroundColor', label: 'Background' },
+  ];
 
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
+    <div className="flex h-screen bg-white font-['DM_Sans',sans-serif] overflow-hidden">
       <Sidebar items={sidebarItems} title="Product Catalogs" />
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col bg-white overflow-hidden">
-        {/* Top Bar */}
-        <div className="bg-gray-100 border-b border-gray-300 px-8 py-4 flex justify-between items-center flex-shrink-0">
-          <h1 className="text-2xl font-bold text-black">
-            {pdfFile ? pdfFile.name : ''}
-          </h1>
-          <button
-            onClick={handleCreateClick}
-            className="btn-primary"
-          >
-            + Create
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+      <main className="flex-1 flex flex-col overflow-hidden">
+
+        {/* ── Top bar ── */}
+        <div className="border-b border-black h-14 px-8 flex items-center justify-between flex-shrink-0 bg-white">
+          <div className="flex items-center gap-4 min-w-0">
+            <span className="text-[10px] tracking-[0.25em] uppercase text-gray-400 hidden md:block flex-shrink-0">
+              Product Catalogs
+            </span>
+            {pdfFile && (
+              <>
+                <span className="text-gray-300 hidden md:block">—</span>
+                <span className="font-['Playfair_Display',serif] text-sm font-black text-black truncate max-w-xs italic">
+                  {pdfFile.name.replace('.pdf', '')}
+                </span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-4 flex-shrink-0">
+            {pdfFile && totalPages > 0 && (
+              <span className="text-[11px] tracking-[0.15em] uppercase text-gray-400 hidden sm:block">
+                {currentPage} / {totalPages}
+              </span>
+            )}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="group inline-flex items-center gap-2.5 border border-black text-black px-5 py-2 text-[11px] tracking-widest uppercase font-semibold hover:bg-black hover:text-white transition-all duration-200"
+            >
+              <span className="text-base leading-none">+</span>
+              <span>Upload PDF</span>
+            </button>
+          </div>
+          <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleFileSelect} className="hidden" />
         </div>
 
-        {/* Main Viewer Area */}
+        {/* ── Body ── */}
         {!pdfFile ? (
-          // Empty State - Just blank space
-          <div className="flex-1 bg-white"></div>
+          <div className="flex-1 bg-white" />
         ) : (
-          // PDF Viewer Layout
-          <div className="flex-1 flex overflow-hidden min-h-0">
+          <div className="flex-1 flex overflow-hidden">
 
-            {/* Center - Page Viewer */}
-            <div className="flex-1 min-w-0 flex flex-col bg-white overflow-hidden">
-              <div className="flex-1 min-h-0 flex items-center gap-4 px-6 py-0 overflow-hidden">
+            {/* ── PDF Viewer ── */}
+            <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-gray-50">
+              <div className="flex-1 min-h-0 flex items-center gap-4 px-6 overflow-hidden">
                 <button
-                  onClick={handlePreviousPage}
+                  onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
                   disabled={currentPage === 1}
-                  className={`p-3 rounded-lg transition-colors duration-200 ${
+                  className={`w-8 h-8 flex-shrink-0 flex items-center justify-center border text-sm transition-all duration-150 ${
                     currentPage === 1
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      : 'bg-black text-white hover:bg-gray-800'
+                      ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                      : 'border-black text-black hover:bg-black hover:text-white'
                   }`}
-                  aria-label="Previous page"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 19l-7-7 7-7"
-                    />
-                  </svg>
-                </button>
+                >←</button>
 
                 <div className="flex-1 min-w-0 h-full flex flex-col items-center overflow-hidden">
-                    <span className="mt-4 text-black font-medium min-w-16 text-center flex-shrink-0">
+                  <span className="mt-4 text-[11px] tracking-[0.15em] uppercase text-gray-400 flex-shrink-0 mb-2">
                     Page {currentPage} of {totalPages}
                   </span>
                   <div className="flex-1 w-full overflow-hidden">
@@ -705,204 +512,231 @@ export default function ProductCatalogsPage() {
                 </div>
 
                 <button
-                  onClick={handleNextPage}
+                  onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
                   disabled={currentPage >= totalPages}
-                  className={`p-3 rounded-lg transition-colors duration-200 ${
+                  className={`w-8 h-8 flex-shrink-0 flex items-center justify-center border text-sm transition-all duration-150 ${
                     currentPage >= totalPages
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      : 'bg-black text-white hover:bg-gray-800'
+                      ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                      : 'border-black text-black hover:bg-black hover:text-white'
                   }`}
-                  aria-label="Next page"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
+                >→</button>
               </div>
             </div>
 
-            {/* Right - Thumbnails Panel */}
-            <div className="w-40 bg-gray-100 border-l border-gray-300 overflow-y-auto p-3">
-              <div className="space-y-2">
-                {Array.from({ length: totalPages }).map((_, index) => {
-                  const pageNum = index + 1;
+            {/* ── Thumbnails ── */}
+            <div className="w-44 border-l border-black bg-white overflow-hidden flex flex-col flex-shrink-0">
+              {/* Header */}
+              <div className="h-10 border-b border-black flex items-center px-4 flex-shrink-0">
+                <span className="text-[10px] tracking-[0.25em] uppercase text-black font-semibold">Pages</span>
+                <span className="ml-auto text-[10px] font-mono text-gray-400">{totalPages}</span>
+              </div>
+
+              {/* Scroll area */}
+              <div className="flex-1 overflow-y-auto">
+                {Array.from({ length: totalPages }).map((_, i) => {
+                  const pageNum = i + 1;
                   const isActive = currentPage === pageNum;
-                  const defaultTitle = `Title ${pageNum}`;
-                  const title = pageTitles[pageNum - 1] !== undefined ? pageTitles[pageNum - 1] : defaultTitle;
                   return (
-                    <PDFThumbnail
+                    <div
                       key={pageNum}
-                      pdfUrl={pdfUrl}
-                      pageNum={pageNum}
-                      isActive={isActive}
-                      title={title}
-                      onTitleChange={(value) => handlePageTitleChange(pageNum, value)}
                       onClick={() => setCurrentPage(pageNum)}
-                    />
+                      className={`relative cursor-pointer border-b transition-all duration-150 ${
+                        isActive
+                          ? 'border-gray-300 bg-gray-200'
+                          : 'border-gray-100 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {/* Active left rail */}
+                      {isActive && (
+                        <div className="absolute left-0 top-0 h-full w-[3px] bg-gray-500 z-10" />
+                      )}
+
+                      <div className="px-3 py-3">
+                        {/* Thumbnail */}
+                        <div className={`w-full border overflow-hidden mb-2 ${isActive ? 'border-gray-900' : 'border-gray-200'}`}>
+                          <PDFThumbnail
+                            pdfUrl={pdfUrl}
+                            pageNum={pageNum}
+                            isActive={isActive}
+                            title={pageTitles[pageNum - 1] ?? `Page ${pageNum}`}
+                            onTitleChange={v => handlePageTitleChange(pageNum, v)}
+                            onClick={() => setCurrentPage(pageNum)}
+                          />
+                        </div>
+
+                        {/* Page label row */}
+                        <div className="flex items-center justify-end">
+                          <span className={`text-[10px] font-mono flex-shrink-0 ${isActive ? 'text-black' : 'text-gray-400'}`}>
+                            {String(pageNum).padStart(2, '0')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* Right-most - Hierarchy Settings Panel */}
-            <div className="w-80 bg-white border-l border-gray-200 overflow-auto flex flex-col">
-              {/* Document ID Section */}
-              <div className="border-b border-gray-200 bg-gray-200 px-4 py-2 flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-semibold text-gray-800 flex-shrink-0">DOC ID</label>
+            {/* ── Right Panel (Settings + Structure) ── */}
+            <div className="w-72 border-l border-black bg-white flex flex-col flex-shrink-0 overflow-hidden">
+
+              {/* SETTINGS header */}
+              <div className="border-b border-black h-10 px-4 flex items-center flex-shrink-0">
+                <span className="text-[10px] tracking-[0.25em] uppercase text-black font-semibold">Settings</span>
+              </div>
+
+              {/* Settings body */}
+              <div className="flex-shrink-0 border-b border-black">
+
+                {/* Document ID */}
+                <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+                  <p className="text-[10px] tracking-[0.2em] uppercase text-black font-semibold mb-2">
+                    Document ID
+                  </p>
                   <input
                     type="text"
                     value={documentId}
-                    onChange={(e) => setDocumentId(e.target.value)}
-                    placeholder="Document ID"
-                    className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                    onChange={e => setDocumentId(e.target.value)}
+                    placeholder="e.g. catalog-2024"
+                    className="w-full border border-gray-300 focus:border-black px-3 py-2 text-[11px] text-black bg-white outline-none transition-colors font-['DM_Sans',sans-serif] placeholder-gray-300"
                   />
                 </div>
-              </div>
 
-              {/* Color Palette Section */}
-              <div className="border-b border-gray-200 bg-gray-200 p-2 flex-shrink-0">
-                <h3 className="text-sm font-semibold text-gray-800">Select color palette</h3>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <div>
-                    <p className="mb-1 text-xs font-medium text-gray-600">Text</p>
-                    <input
-                      type="text"
-                      value={themeInputs.primaryColor}
-                      onChange={(e) => handleThemeInputChange('primaryColor', e.target.value)}
-                      placeholder="Text"
-                      className={`w-full rounded border px-3 py-2 text-sm ${themeErrors.primaryColor ? 'border-red-400' : 'border-gray-300'}`}
-                    />
-                    {themeErrors.primaryColor && (
-                      <p className="mt-1 text-xs text-red-600">{themeErrors.primaryColor}</p>
-                    )}
+                {/* Colour Palette */}
+                <div className="px-4 pt-3 pb-4 border-b border-gray-100">
+                  <p className="text-[10px] tracking-[0.2em] uppercase text-black font-semibold mb-3">
+                    Colour Palette
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {themeFields.map(({ key, label }) => (
+                      <div key={key}>
+                        <p className="text-[10px] tracking-[0.1em] uppercase text-black mb-1.5 font-semibold">
+                          {label}
+                        </p>
+                        <div className="relative">
+                          {isValidHex(themeInputs[key]) && (
+                            <div
+                              className="absolute left-2 top-1/2 -translate-y-1/2 w-2.5 h-2.5 border border-gray-200 flex-shrink-0 pointer-events-none"
+                              style={{ backgroundColor: themeInputs[key] }}
+                            />
+                          )}
+                          <input
+                            type="text"
+                            value={themeInputs[key]}
+                            onChange={e => handleThemeInputChange(key, e.target.value)}
+                            placeholder="#000000"
+                            className={`w-full border px-2 py-1.5 text-[10px] text-black bg-white outline-none transition-colors font-['DM_Sans',sans-serif] placeholder-gray-300 ${
+                              isValidHex(themeInputs[key]) ? 'pl-[1.4rem]' : ''
+                            } ${
+                              themeErrors[key] ? 'border-red-300' : 'border-gray-300 focus:border-black'
+                            }`}
+                          />
+                        </div>
+                        {themeErrors[key] && (
+                          <p className="mt-0.5 text-[9px] text-red-500">{themeErrors[key]}</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <p className="mb-1 text-xs font-medium text-gray-600">Component</p>
-                    <input
-                      type="text"
-                      value={themeInputs.componentColor}
-                      onChange={(e) => handleThemeInputChange('componentColor', e.target.value)}
-                      placeholder="Component"
-                      className={`w-full rounded border px-3 py-2 text-sm ${themeErrors.componentColor ? 'border-red-400' : 'border-gray-300'}`}
-                    />
-                    {themeErrors.componentColor && (
-                      <p className="mt-1 text-xs text-red-600">{themeErrors.componentColor}</p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="mb-1 text-xs font-medium text-gray-600">Background</p>
-                    <input
-                      type="text"
-                      value={themeInputs.backgroundColor}
-                      onChange={(e) => handleThemeInputChange('backgroundColor', e.target.value)}
-                      placeholder="Background"
-                      className={`w-full rounded border px-3 py-2 text-sm ${themeErrors.backgroundColor ? 'border-red-400' : 'border-gray-300'}`}
-                    />
-                    {themeErrors.backgroundColor && (
-                      <p className="mt-1 text-xs text-red-600">{themeErrors.backgroundColor}</p>
-                    )}
+                </div>
+
+                {/* Preview + Publish */}
+                <div className="px-4 py-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => {
+                        if (canPublish) {
+                          persistHierarchyData();
+                          window.open(`/services/product-catalogs/preview/${documentId}`, '_blank');
+                        }
+                      }}
+                      disabled={!canPublish}
+                      className={`flex items-center justify-center gap-2 py-2.5 text-[10px] tracking-[0.15em] uppercase font-semibold border transition-all duration-150 ${
+                        canPublish
+                          ? 'border-black text-black hover:bg-black hover:text-white'
+                          : 'border-gray-200 text-gray-300 cursor-not-allowed'
+                      }`}
+                    >
+                      <IconEye />
+                      <span>Preview</span>
+                    </button>
+                    <button
+                      onClick={() => {}}
+                      disabled={!canPublish}
+                      className={`flex items-center justify-center gap-2 py-2.5 text-[10px] tracking-[0.15em] uppercase font-semibold border transition-all duration-150 ${
+                        canPublish
+                          ? 'border-black bg-black text-white hover:bg-white hover:text-black'
+                          : 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50'
+                      }`}
+                    >
+                      <IconPublish />
+                      <span>Publish</span>
+                    </button>
                   </div>
                 </div>
               </div>
 
-              {/* Buttons Section */}
-              <div className="border-b border-gray-200 bg-gray-200 p-2 flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (documentId.length > 6 && hasAllThemeColors) {
-                        persistHierarchyData();
-                        window.open(`/services/product-catalogs/preview/${documentId}`, '_blank');
-                      }
-                    }}
-                    disabled={documentId.length <= 6 || !hasAllThemeColors}
-                    className={`flex-1 p-1 rounded text-sm font-medium transition-colors ${
-                      documentId.length > 6 && hasAllThemeColors
-                        ? 'bg-black text-white hover:bg-gray-800'
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
-                    title="Preview document"
-                  >
-                    Preview
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {}}
-                    disabled={documentId.length <= 6 || !hasAllThemeColors}
-                    className={`flex-1 p-1 rounded text-sm font-medium transition-colors ${
-                      documentId.length > 6 && hasAllThemeColors
-                        ? 'bg-black text-white hover:bg-gray-800'
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
-                    title="Publish document"
-                  >
-                    Publish
-                  </button>
+              {/* STRUCTURE header */}
+              <div className="border-b border-gray-200 px-4 h-10 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] tracking-[0.25em] uppercase text-black font-semibold">Structure</span>
                 </div>
-              </div>
-              
-              <div className="border-t-4 border-b border-gray-300 p-2 flex-shrink-0">
-                <div className="mb-2">
-                  <h3 className="text-sm font-semibold text-gray-800">Pages</h3>
-                </div>
-                <p className="text-xs text-gray-500">
-                  Select & move · Click to rename
-                </p>
-              </div>
-
-              <div className="px-4 pt-3 pb-0 flex justify-end flex-shrink-0">
                 <button
-                  type="button"
                   onClick={() => createNewGroup('root')}
-                  className="rounded bg-black px-2 py-1 text-xs font-medium text-white hover:bg-gray-800"
+                  className="text-[9px] tracking-[0.15em] uppercase font-semibold text-black hover:text-gray-500 transition-colors flex items-center gap-1"
                 >
-                  + Parent
+                  <svg viewBox="0 0 10 10" className="w-2 h-2" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                    <path d="M5 1v8M1 5h8" />
+                  </svg>
+                  Group
                 </button>
               </div>
 
+              {/* Error banner */}
               {selectionError && (
-                <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
-                  {selectionError}
-                </div>
-              )}
-
-              {selectedPages.size > 0 && (
-                <div className="border-b border-blue-200 bg-blue-50 px-4 py-2 flex items-center justify-between text-xs">
-                  <span className="text-blue-900 font-medium">
-                    {selectedPages.size} item{selectedPages.size > 1 ? 's' : ''} selected
-                  </span>
+                <div className="border-b border-gray-100 bg-gray-50 px-4 py-2 flex items-center justify-between flex-shrink-0">
+                  <span className="text-[10px] text-black">{selectionError}</span>
                   <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedPages(new Set());
-                      setSelectionError(null);
-                    }}
-                    className="text-blue-600 hover:text-blue-800"
+                    onClick={() => setSelectionError(null)}
+                    className="text-gray-400 hover:text-black transition-colors ml-2 flex-shrink-0"
                   >
-                    Clear
+                    <IconX />
                   </button>
                 </div>
               )}
 
-              <div className="flex-1 overflow-auto px-2 pt-0 pb-2">
-                {Object.keys(pageAssignments).length > 0 ? renderHierarchy() : (
-                  <div className="p-4 text-sm text-gray-500 text-center">
-                    Upload a PDF to get started
+              {/* Selection banner */}
+              {selectedPages.size > 0 && (
+                <div className="border-b border-black bg-black px-4 py-2 flex items-center justify-between flex-shrink-0">
+                  <span className="text-[10px] tracking-[0.15em] uppercase text-white font-semibold">
+                    {selectedPages.size} page{selectedPages.size > 1 ? 's' : ''} selected
+                  </span>
+                  <button
+                    onClick={() => { setSelectedPages(new Set()); setSelectionError(null); }}
+                    className="text-gray-500 hover:text-white transition-colors"
+                  >
+                    <IconX />
+                  </button>
+                </div>
+              )}
+
+              {/* Tree */}
+              <div className="flex-1 overflow-y-auto">
+                {Object.keys(pageAssignments).length > 0 ? (
+                  renderHierarchy()
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-6">
+                    <svg viewBox="0 0 32 32" className="w-8 h-8 text-gray-200" fill="none" stroke="currentColor" strokeWidth="1.2">
+                      <rect x="4" y="4" width="24" height="24" rx="1" />
+                      <path d="M4 12h24M12 12v16" strokeLinecap="round" />
+                    </svg>
+                    <p className="text-[11px] text-gray-400 leading-relaxed">
+                      Upload a PDF to build your document structure
+                    </p>
                   </div>
                 )}
               </div>
+
             </div>
           </div>
         )}
