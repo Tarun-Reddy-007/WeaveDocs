@@ -13,8 +13,8 @@ export default function ServicesPage() {
     },
   ];
 
-  const coming = [
-    { num: '04', title: 'Analytics', tag: 'Soon' },
+  const coming: Array<{ num?: string; title?: string; tag?: string }> = [
+    {  },
   ];
 
   return (
@@ -26,7 +26,7 @@ export default function ServicesPage() {
             <p className="text-[11px] tracking-[0.25em] uppercase text-gray-400 mb-4">
               WeaveDocs / Services
             </p>
-            <h1 className="font-['Playfair_Display',serif] text-[clamp(2.8rem,6vw,5rem)] font-black leading-[0.95] tracking-tight text-black">
+            <h1 className="font-['Playfair_Display',serif] text-[clamp(2.1rem,4.4vw,4rem)] font-black leading-[0.95] tracking-tight text-black">
               Our<br />
               <span className="italic font-normal">Services</span>
             </h1>
@@ -72,17 +72,17 @@ export default function ServicesPage() {
         {/* Coming soon rows */}
         {coming.map((s) => (
           <div
-            key={s.num}
+            key={s.num ?? 'coming-empty'}
             className="border-b border-gray-200 py-10 grid grid-cols-[3rem_1fr_auto] md:grid-cols-[4rem_1fr_1fr_auto] items-center gap-6 opacity-40 cursor-not-allowed select-none"
           >
-            <span className="text-[11px] font-mono text-gray-400">{s.num}</span>
+            <span className="text-[11px] font-mono text-gray-400">{s.num ?? ''}</span>
             <h2 className="font-['Playfair_Display',serif] text-2xl md:text-3xl font-black text-black">
-              {s.title}
+              {s.title ?? ''}
             </h2>
             <span className="hidden md:block" />
             <div className="flex items-center gap-4">
               <span className="text-[11px] tracking-[0.2em] uppercase text-gray-400 border border-gray-300 px-3 py-1">
-                {s.tag}
+                {s.tag ?? ''}
               </span>
             </div>
           </div>
