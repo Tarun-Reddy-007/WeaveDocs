@@ -53,8 +53,8 @@ export function PDFViewer({
     const update = () => {
       if (containerRef.current) {
         setContainerSize({
-          width: Math.max(containerRef.current.clientWidth - 32, 200),
-          height: Math.max(containerRef.current.clientHeight - 32, 200),
+          width: Math.max(containerRef.current.clientWidth, 200),
+          height: Math.max(containerRef.current.clientHeight, 200),
         });
       }
     };
@@ -67,7 +67,7 @@ export function PDFViewer({
 
   const renderWidth = useMemo(() => {
     if (containerSize.width === 0) return undefined;
-    if (!fitToContainer) return Math.max(containerSize.width, 600);
+    if (!fitToContainer) return containerSize.width;
     if (pageSize.width === 0 || pageSize.height === 0) return containerSize.width;
     const scale = Math.min(
       containerSize.width / pageSize.width,
