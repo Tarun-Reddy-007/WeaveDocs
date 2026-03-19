@@ -485,6 +485,7 @@ export default function PreviewPage() {
                 pdfUrl={pdfUrl}
                 currentPage={currentPageNum}
                 onTotalPagesChange={() => {}}
+                onInternalLinkClick={(pageNum) => setCurrentPageNum(pageNum)}
               />
             </div>
 
