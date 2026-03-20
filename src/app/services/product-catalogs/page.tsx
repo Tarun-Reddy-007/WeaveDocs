@@ -421,6 +421,7 @@ export default function ProductCatalogsPage() {
                       currentPage={currentPage}
                       onTotalPagesChange={handleTotalPagesLoaded}
                       fitToContainer={true}
+                      pageTitle={pageTitles[currentPage - 1] ?? `Title ${currentPage}`}
                       onInternalLinkClick={(pageNum) => setCurrentPage(pageNum)}
                     />
                   </div>

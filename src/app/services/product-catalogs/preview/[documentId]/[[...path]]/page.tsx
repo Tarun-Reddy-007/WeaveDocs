@@ -150,7 +150,14 @@ function PageStackItem({ pageNum, pdfUrl, pageTitles, primaryColor, componentCol
   return (
     <div ref={containerRef} className="mb-10 w-full">
       <div className="w-full" style={{ boxShadow: '0 2px 16px 0 rgba(0,0,0,0.08)' }}>
-        <PDFViewer pdfUrl={pdfUrl} currentPage={pageNum} onTotalPagesChange={() => {}} onInternalLinkClick={onInternalLinkClick} fitToContainer={false} />
+        <PDFViewer
+          pdfUrl={pdfUrl}
+          currentPage={pageNum}
+          pageTitle={pageTitles[pageNum - 1] || `Page ${pageNum}`}
+          onTotalPagesChange={() => {}}
+          onInternalLinkClick={onInternalLinkClick}
+          fitToContainer={false}
+        />
       </div>
     </div>
   );
@@ -644,6 +651,7 @@ export default function PreviewPage() {
                 <PDFViewer
                   pdfUrl={pdfUrl}
                   currentPage={pagesInSelectedPath[0]}
+                  pageTitle={pageTitles[pagesInSelectedPath[0] - 1] || `Page ${pagesInSelectedPath[0]}`}
                   onTotalPagesChange={() => {}}
                   onInternalLinkClick={n => {
                     setCurrentPageNum(n);

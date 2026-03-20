@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
 if (typeof window !== 'undefined') {
   pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/legacy/build/pdf.worker.min.mjs`;
@@ -16,6 +17,101 @@ interface PDFViewerProps {
   onTotalPagesChange: (total: number) => void;
   fitToContainer?: boolean;
   onInternalLinkClick?: (pageNumber: number) => void;
+  pageTitle?: string;
+}
+
+const pdfDocumentCache = new Map<string, ReturnType<typeof pdfjs.getDocument>['promise']>();
+const pdfPageTextCache = new Map<string, Promise<string>>();
+
+type TextItem = {
+  str?: string;
+  width?: number;
+  transform?: number[];
+};
+
+function getCachedPdfDocument(pdfUrl: string) {
+  const existing = pdfDocumentCache.get(pdfUrl);
+  if (existing) return existing;
+
+  const promise = pdfjs.getDocument(pdfUrl).promise;
+  pdfDocumentCache.set(pdfUrl, promise);
+  return promise;
+}
+
+function buildSemanticText(items: TextItem[]) {
+  const positioned = items
+    .map(item => ({
+      text: item.str ?? '',
+      x: item.transform?.[4] ?? 0,
+      y: item.transform?.[5] ?? 0,
+      width: item.width ?? 0,
+    }))
+    .filter(item => item.text.trim().length > 0)
+    .sort((a, b) => {
+      if (Math.abs(a.y - b.y) <= 2) return a.x - b.x;
+      return b.y - a.y;
+    });
+
+  if (positioned.length === 0) return '';
+
+  const lines: Array<Array<(typeof positioned)[number]>> = [];
+
+  positioned.forEach(item => {
+    const currentLine = lines[lines.length - 1];
+    if (!currentLine) {
+      lines.push([item]);
+      return;
+    }
+
+    const baseline = currentLine[0]?.y ?? item.y;
+    if (Math.abs(baseline - item.y) <= 2) {
+      currentLine.push(item);
+      return;
+    }
+
+    lines.push([item]);
+  });
+
+  return lines
+    .map(line => {
+      const sortedLine = [...line].sort((a, b) => a.x - b.x);
+      let output = '';
+      let previousEndX = 0;
+      let previousCharWidth = 4;
+
+      sortedLine.forEach((item, index) => {
+        if (index > 0) {
+          const gap = item.x - previousEndX;
+          if (gap > previousCharWidth * 6) output += '\t';
+          else if (gap > previousCharWidth * 1.5 && !output.endsWith(' ')) output += ' ';
+        }
+
+        output += item.text;
+        previousEndX = item.x + item.width;
+        previousCharWidth = item.text.length > 0 ? Math.max(item.width / item.text.length, 3) : previousCharWidth;
+      });
+
+      return output.trimEnd();
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+async function extractPageSemanticText(pdfUrl: string, pageNumber: number) {
+  const cacheKey = `${pdfUrl}::${pageNumber}`;
+  const existing = pdfPageTextCache.get(cacheKey);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    const pdfDocument = await getCachedPdfDocument(pdfUrl);
+    const page = await pdfDocument.getPage(pageNumber);
+    const textContent = await page.getTextContent();
+    return buildSemanticText((textContent.items ?? []) as TextItem[]);
+  })();
+
+  pdfPageTextCache.set(cacheKey, promise);
+  return promise;
 }
 
 export function PDFViewer({
@@ -24,11 +120,13 @@ export function PDFViewer({
   onTotalPagesChange,
   fitToContainer = false,
   onInternalLinkClick,
+  pageTitle,
 }: PDFViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
+  const [semanticText, setSemanticText] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
@@ -64,6 +162,28 @@ export function PDFViewer({
     window.addEventListener('resize', update);
     return () => { ro.disconnect(); window.removeEventListener('resize', update); };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!pdfUrl) {
+      setSemanticText('');
+      return;
+    }
+
+    extractPageSemanticText(pdfUrl, currentPage)
+      .then(text => {
+        if (!cancelled) setSemanticText(text);
+      })
+      .catch(err => {
+        console.error('PDF text extraction error:', err);
+        if (!cancelled) setSemanticText('');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pdfUrl, currentPage]);
 
   const renderWidth = useMemo(() => {
     if (containerSize.width === 0) return undefined;
@@ -119,7 +239,7 @@ export function PDFViewer({
   return (
     <div
       ref={containerRef}
-      className={`w-full h-full bg-transparent flex ${
+      className={`w-full h-full bg-transparent flex select-text ${
         fitToContainer
           ? 'items-center justify-center overflow-hidden'
           : 'flex-col items-start overflow-y-auto overflow-x-hidden'
@@ -140,11 +260,25 @@ export function PDFViewer({
           <div className="shadow-[0_2px_16px_0_rgba(0,0,0,0.10)]">
             <Page
               pageNumber={currentPage}
-              renderTextLayer={false}
+              renderTextLayer={true}
               renderAnnotationLayer={true}
               width={renderWidth}
               onLoadSuccess={handlePageLoadSuccess}
             />
+
+            {semanticText && (
+              <article
+                className="sr-only"
+                lang="en"
+                data-ai-readable="true"
+                data-page-number={currentPage}
+                data-page-title={pageTitle || `Page ${currentPage}`}
+                aria-label={`Extracted text for ${pageTitle || `Page ${currentPage}`}`}
+              >
+                <h2>{pageTitle || `Page ${currentPage}`}</h2>
+                <div className="whitespace-pre-wrap">{semanticText}</div>
+              </article>
+            )}
           </div>
         </Document>
       )}
