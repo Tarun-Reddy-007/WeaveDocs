@@ -149,11 +149,6 @@ function PageStackItem({ pageNum, pdfUrl, pageTitles, primaryColor, componentCol
 
   return (
     <div ref={containerRef} className="mb-10 w-full">
-      <div className="mb-2 flex items-center gap-2" style={{ borderLeft: `3px solid ${componentColor}`, paddingLeft: '10px' }}>
-        <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: primaryColor, opacity: 0.45 }}>
-          {pageTitles[pageNum - 1] || `Page ${pageNum}`}
-        </span>
-      </div>
       <div className="w-full" style={{ boxShadow: '0 2px 16px 0 rgba(0,0,0,0.08)' }}>
         <PDFViewer pdfUrl={pdfUrl} currentPage={pageNum} onTotalPagesChange={() => {}} onInternalLinkClick={onInternalLinkClick} fitToContainer={false} />
       </div>
@@ -616,10 +611,10 @@ export default function PreviewPage() {
             {pagesInSelectedPath.length > 1 ? (
               <div
                 ref={pdfContainerRef}
-                className="h-full overflow-y-auto px-4 md:px-8 lg:px-12 pt-5"
+                className="h-full overflow-y-auto pt-5"
                 style={{ scrollbarWidth: 'thin', scrollbarColor: '#9ca3af transparent' }}
               >
-                <div className="flex flex-col max-w-4xl mx-auto pb-4">
+                <div className="flex flex-col w-full pb-4">
                   {pagesInSelectedPath.map(pageNum => (
                     <PageStackItem
                       key={`page-${pageNum}`}
