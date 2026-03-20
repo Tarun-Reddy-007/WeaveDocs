@@ -372,6 +372,32 @@ export default function PreviewPage() {
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
 
+  const currentNavIndex = flatNavItems.findIndex(item =>
+    item.type === 'page'
+      ? item.path === selectedPath && item.pageNum === currentPageNum
+      : item.path === selectedPath
+  );
+  const getAdjacentPageItem = (direction: 'prev' | 'next'): NavItem | null => {
+    if (currentNavIndex === -1) return null;
+    const step = direction === 'prev' ? -1 : 1;
+    let i = currentNavIndex + step;
+    while (i >= 0 && i < flatNavItems.length) {
+      const candidate = flatNavItems[i];
+      if (candidate.type === 'page' && candidate.pageNum !== undefined) return candidate;
+      i += step;
+    }
+    return null;
+  };
+  const prevPageItem = getAdjacentPageItem('prev');
+  const nextPageItem = getAdjacentPageItem('next');
+  const canGoPrevPage = Boolean(prevPageItem);
+  const canGoNextPage = Boolean(nextPageItem);
+  const goToAdjacentPage = (direction: 'prev' | 'next') => {
+    const targetItem = direction === 'prev' ? prevPageItem : nextPageItem;
+    if (!targetItem || targetItem.type !== 'page' || targetItem.pageNum === undefined) return;
+    handlePageClick(targetItem.path, targetItem.pageNum);
+  };
+
   const renderHierarchy = (parentPath = 'root', depth = 0): React.ReactNode => {
     const childPaths = getChildPaths(parentPath, groupMetadata);
     const pages = getPagesInPath(parentPath, pageAssignments);
@@ -603,14 +629,38 @@ export default function PreviewPage() {
                 {currentTitle}
               </span>
             </div>
-            {pagesInSelectedPath.length > 1 && (
-              <span
-                className="flex-shrink-0 text-xs font-mono ml-3 px-2 py-0.5 rounded"
-                style={{ color: primaryColor, opacity: 0.35, backgroundColor: `${primaryColor}08` }}
+            <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+              <button
+                onClick={() => goToAdjacentPage('prev')}
+                disabled={!canGoPrevPage}
+                className="w-8 h-6 flex items-center justify-center rounded border text-sm transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{ color: primaryColor, borderColor: `${primaryColor}22` }}
+                aria-label="Previous page"
               >
-                {currentPageNum} / {pagesInSelectedPath[pagesInSelectedPath.length - 1]}
-              </span>
-            )}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
+              </button>
+              <button
+                onClick={() => goToAdjacentPage('next')}
+                disabled={!canGoNextPage}
+                className="w-8 h-6 flex items-center justify-center rounded border text-sm transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{ color: primaryColor, borderColor: `${primaryColor}22` }}
+                aria-label="Next page"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </button>
+              {pagesInSelectedPath.length > 1 && (
+                <span
+                  className="text-xs font-mono px-2 py-0.5 rounded"
+                  style={{ color: primaryColor, opacity: 0.35, backgroundColor: `${primaryColor}08` }}
+                >
+                  {currentPageNum} / {pagesInSelectedPath[pagesInSelectedPath.length - 1]}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* PDF area */}
