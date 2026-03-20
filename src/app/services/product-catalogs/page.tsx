@@ -476,15 +476,15 @@ export default function ProductCatalogsPage() {
             <div className="w-72 border-l border-black bg-white flex flex-col flex-shrink-0 overflow-hidden">
 
               {/* SETTINGS header */}
-              <div className="border-b border-black h-10 px-4 flex items-center flex-shrink-0">
+              <div className="border-b border-black h-10 px-4 flex items-center flex-shrink-0 bg-gray-100">
                 <span className="text-[10px] tracking-[0.25em] uppercase text-black font-semibold">Settings</span>
               </div>
 
               {/* Settings body */}
-              <div className="flex-shrink-0 border-b border-black overflow-y-auto" style={{ maxHeight: '55%' }}>
+              <div className="flex-shrink-0 border-b border-black overflow-y-auto bg-gray-100" style={{ maxHeight: '35%' }}>
 
                 {/* Document ID */}
-                <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+                <div className="px-4 pt-4 pb-2 border-b border-gray-100">
                   <p className="text-[10px] tracking-[0.2em] uppercase text-black font-semibold mb-2">Document ID</p>
                   <input
                     type="text" value={documentId} onChange={e => setDocumentId(e.target.value)}
@@ -494,7 +494,7 @@ export default function ProductCatalogsPage() {
                 </div>
 
                 {/* Document Name */}
-                <div className="px-4 pt-3 pb-3 border-b border-gray-100">
+                <div className="px-4 pt-3 pb-2 border-b border-gray-100">
                   <p className="text-[10px] tracking-[0.2em] uppercase text-black font-semibold mb-2">Document Name</p>
                   <input
                     type="text" value={docName} onChange={e => setDocName(e.target.value)}
@@ -504,7 +504,7 @@ export default function ProductCatalogsPage() {
                 </div>
 
                 {/* Font Style */}
-                <div className="px-4 pt-3 pb-3 border-b border-gray-100">
+                <div className="px-4 pt-3 pb-2 border-b border-gray-100">
                   <p className="text-[10px] tracking-[0.2em] uppercase text-black font-semibold mb-2">Font Style</p>
                   <div className="relative">
                     <select
@@ -526,12 +526,12 @@ export default function ProductCatalogsPage() {
                 </div>
 
                 {/* Colour Palette */}
-                <div className="px-4 pt-3 pb-4 border-b border-gray-100">
+                <div className="px-4 pt-3 pb-3 border-b border-gray-100">
                   <p className="text-[10px] tracking-[0.2em] uppercase text-black font-semibold mb-3">Colour Palette</p>
                   <div className="grid grid-cols-3 gap-2">
                     {themeFields.map(({ key, label }) => (
                       <div key={key}>
-                        <p className="text-[10px] tracking-[0.1em] uppercase text-black mb-1.5 font-semibold">{label}</p>
+                        <p className="text-[8px] tracking-[0.1em] uppercase text-black mb-1.5 font-semibold">{label}</p>
                         <div className="relative">
                           {isValidHex(themeInputs[key]) && (
                             <div
@@ -552,8 +552,8 @@ export default function ProductCatalogsPage() {
                   </div>
                 </div>
 
-                {/* Preview + Publish */}
-                <div className="px-4 py-3">
+                {/* Preview + Publish (sticky) */}
+                <div className="sticky bottom-0 z-10 px-4 py-3 border-t border-gray-100 bg-gray-100">
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => { if (canPublish) { persistHierarchyData(); window.open(`/services/product-catalogs/preview/${documentId}`, '_blank'); } }}
