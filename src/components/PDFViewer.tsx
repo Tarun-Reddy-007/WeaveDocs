@@ -18,6 +18,7 @@ interface PDFViewerProps {
   fitToContainer?: boolean;
   onInternalLinkClick?: (pageNumber: number) => void;
   pageTitle?: string;
+  surfaceStyle?: 'card' | 'flat';
 }
 
 const pdfDocumentCache = new Map<string, ReturnType<typeof pdfjs.getDocument>['promise']>();
@@ -121,6 +122,7 @@ export function PDFViewer({
   fitToContainer = false,
   onInternalLinkClick,
   pageTitle,
+  surfaceStyle = 'card',
 }: PDFViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -256,14 +258,14 @@ export function PDFViewer({
           onItemClick={onInternalLinkClick ? handleItemClick : undefined}
           loading={<Spinner />}
         >
-          {/* Subtle shadow lifts the page off the background */}
-          <div className="shadow-[0_2px_16px_0_rgba(0,0,0,0.10)]">
+          <div className={surfaceStyle === 'card' ? 'shadow-[0_2px_16px_0_rgba(0,0,0,0.10)]' : ''}>
             <Page
               pageNumber={currentPage}
               renderTextLayer={true}
               renderAnnotationLayer={true}
               width={renderWidth}
               onLoadSuccess={handlePageLoadSuccess}
+              canvasBackground={surfaceStyle === 'flat' ? 'transparent' : '#ffffff'}
             />
 
             {semanticText && (

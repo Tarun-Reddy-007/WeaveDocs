@@ -4,12 +4,16 @@ import { useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { Sidebar } from '@/components/layout/sidebar/Sidebar';
 import { useHierarchy } from '@/lib/HierarchyContext';
+import { parseHtmlCatalogUpload } from '@/lib/indesign-parser';
+import type { ParsedHtmlCatalog } from '@/lib/indesign-parser';
 
 type PageAssignment = { [pageNum: number]: string };
 type GroupMetadata = { [path: string]: { title: string } };
 
 const PDFViewer = dynamic(() => import('@/components/PDFViewer').then(mod => mod.PDFViewer), { ssr: false });
 const PDFThumbnail = dynamic(() => import('@/components/PDFViewer').then(mod => mod.PDFThumbnail), { ssr: false });
+const HTMLPageViewer = dynamic(() => import('@/components/HTMLPageViewer').then(mod => mod.HTMLPageViewer), { ssr: false });
+const HTMLThumbnail = dynamic(() => import('@/components/HTMLPageViewer').then(mod => mod.HTMLThumbnail), { ssr: false });
 
 const sidebarItems = [
   { label: 'Catalogs', href: '/services/product-catalogs' },
@@ -90,7 +94,9 @@ const FONT_OPTIONS = [
 export default function ProductCatalogsPage() {
   const { setHierarchyData } = useHierarchy();
 
+  const [sourceType, setSourceType] = useState<'pdf' | 'html' | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [htmlCatalog, setHtmlCatalog] = useState<ParsedHtmlCatalog | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -108,52 +114,109 @@ export default function ProductCatalogsPage() {
   const [fontStyle, setFontStyle] = useState('Arial');
   const [themeInputs, setThemeInputs] = useState({ primaryColor: '', componentColor: '', backgroundColor: '' });
   const [themeErrors, setThemeErrors] = useState<Record<string, string>>({});
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const htmlInputRef = useRef<HTMLInputElement>(null);
 
   const isValidHex = (v: string) => /^#([0-9A-Fa-f]{6})$/.test(v.trim());
   const hasAllThemeColors =
     isValidHex(themeInputs.primaryColor) &&
     isValidHex(themeInputs.componentColor) &&
     isValidHex(themeInputs.backgroundColor);
-  const canPublish = documentId.length > 6 && hasAllThemeColors;
+  const hasLoadedDocument = sourceType === 'pdf' ? Boolean(pdfFile) : Boolean(htmlCatalog);
+  const canPublish = hasLoadedDocument && documentId.length > 6 && hasAllThemeColors;
+  const activeSourceName = sourceType === 'pdf' ? pdfFile?.name : htmlCatalog?.sourceName;
 
-  const persistHierarchyData = () => {
-    setHierarchyData({
-      documentId, docName, pdfUrl: pdfUrl || '',
+  const persistHierarchyData = async () => {
+    await setHierarchyData({
+      sourceType: sourceType || 'pdf',
+      documentId,
+      docName,
+      pdfUrl: sourceType === 'pdf' ? pdfUrl || '' : null,
+      htmlCatalog: sourceType === 'html' ? htmlCatalog : null,
       pageAssignments, groupMetadata, pageTitles,
-      pdfFileName: pdfFile?.name,
+      pdfFileName: sourceType === 'pdf' ? pdfFile?.name : undefined,
+      sourceFileName: activeSourceName || null,
       themeColors: hasAllThemeColors
         ? { primaryColor: themeInputs.primaryColor.trim(), componentColor: themeInputs.componentColor.trim(), backgroundColor: themeInputs.backgroundColor.trim(), fontStyle }
         : null,
     });
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const resetSharedEditorState = () => {
+    setCurrentPage(1);
+    setPageTitles([]);
+    setPageAssignments({});
+    setGroupMetadata({ root: { title: 'All Pages' } });
+    setExpandedPaths(new Set(['root']));
+    setEditingPath(null);
+    setSelectedPages(new Set());
+    setSelectionError(null);
+    setHierarchyReady(false);
+    setDocumentId('');
+    setDocName('');
+    setFontStyle('Arial');
+    setThemeInputs({ primaryColor: '', componentColor: '', backgroundColor: '' });
+    setThemeErrors({});
+  };
+
+  const initialiseHierarchyForPages = (pageCount: number, titles: string[]) => {
+    setTotalPages(pageCount);
+    setPageTitles(titles);
+    const init: PageAssignment = {};
+    for (let i = 1; i <= pageCount; i += 1) init[i] = 'root';
+    setPageAssignments(init);
+    setGroupMetadata({ root: { title: 'All Pages' } });
+    setExpandedPaths(new Set(['root']));
+    setSelectedPages(new Set());
+    setSelectionError(null);
+    setHierarchyReady(true);
+  };
+
+  const handlePdfSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type === 'application/pdf') {
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
       const url = URL.createObjectURL(file);
-      setPdfFile(file); setPdfUrl(url); setCurrentPage(1); setTotalPages(0);
-      setPageTitles([]); setPageAssignments({}); setGroupMetadata({});
-      setExpandedPaths(new Set()); setEditingPath(null);
-      setSelectedPages(new Set()); setSelectionError(null);
-      setHierarchyReady(false); setDocumentId(''); setDocName(''); setFontStyle('Arial');
-      setThemeInputs({ primaryColor: '', componentColor: '', backgroundColor: '' });
-      setThemeErrors({});
+      setSourceType('pdf');
+      setHtmlCatalog(null);
+      setPdfFile(file);
+      setPdfUrl(url);
+      setTotalPages(0);
+      resetSharedEditorState();
     } else alert('Please select a valid PDF file');
+  };
+
+  const handleHtmlSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isSupported = /\.(zip|html?|HTML?)$/i.test(file.name);
+    if (!isSupported) {
+      alert('Please select a ZIP, HTML, or HTM file.');
+      return;
+    }
+
+    try {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+      resetSharedEditorState();
+      const parsedCatalog = await parseHtmlCatalogUpload(file);
+      setSourceType('html');
+      setPdfFile(null);
+      setPdfUrl(null);
+      setHtmlCatalog(parsedCatalog);
+      initialiseHierarchyForPages(parsedCatalog.totalPages, parsedCatalog.pages.map((page) => page.title));
+    } catch (error) {
+      console.error('HTML upload failed', error);
+      alert(error instanceof Error ? error.message : 'Failed to parse the uploaded HTML export.');
+    } finally {
+      if (htmlInputRef.current) htmlInputRef.current.value = '';
+    }
   };
 
   const handleTotalPagesLoaded = (total: number) => {
     setTotalPages(total);
     if (!hierarchyReady) {
-      setPageTitles(Array.from({ length: total }, (_, i) => `Title ${i + 1}`));
-      const init: PageAssignment = {};
-      for (let i = 1; i <= total; i++) init[i] = 'root';
-      setPageAssignments(init);
-      setGroupMetadata({ root: { title: 'All Pages' } });
-      setExpandedPaths(new Set(['root']));
-      setSelectedPages(new Set()); setSelectionError(null);
-      setHierarchyReady(true);
+      initialiseHierarchyForPages(total, Array.from({ length: total }, (_, i) => `Title ${i + 1}`));
     }
   };
 
@@ -252,8 +315,8 @@ export default function ProductCatalogsPage() {
             return (
               <div
                 key={`page-${pageNum}`}
-                style={{ paddingLeft: `${depth * 12 + 10}px` }}
-                className={`group flex items-center gap-2 py-[6px] pr-3 border-b border-gray-100 transition-colors duration-100 ${isSelected ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+                style={{ paddingLeft: `${depth * 12 + 6}px` }}
+                className={`group flex items-center gap-1.5 py-[6px] pr-2 border-b border-gray-100 transition-colors duration-100 ${isSelected ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
               >
                 <div className="relative flex-shrink-0">
                   <input type="checkbox" checked={isSelected} id={`chk-${pageNum}`}
@@ -370,39 +433,47 @@ export default function ProductCatalogsPage() {
         <div className="border-b border-black h-14 px-8 flex items-center justify-between flex-shrink-0 bg-white">
           <div className="flex items-center gap-4 min-w-0">
             <span className="text-[10px] tracking-[0.25em] uppercase text-gray-400 hidden md:block flex-shrink-0">Product Catalogs</span>
-            {pdfFile && (
+            {activeSourceName && (
               <>
                 <span className="text-gray-300 hidden md:block">—</span>
                 <span className="font-['Playfair_Display',serif] text-sm font-black text-black truncate max-w-xs italic">
-                  {pdfFile.name.replace('.pdf', '')}
+                  {activeSourceName.replace(/\.(pdf|zip|html?)$/i, '')}
                 </span>
               </>
             )}
           </div>
           <div className="flex items-center gap-4 flex-shrink-0">
-            {pdfFile && totalPages > 0 && (
+            {hasLoadedDocument && totalPages > 0 && (
               <span className="text-[11px] tracking-[0.15em] uppercase text-gray-400 hidden sm:block">
                 {currentPage} / {totalPages}
               </span>
             )}
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => htmlInputRef.current?.click()}
+              className="group inline-flex items-center gap-2.5 border border-black text-black px-5 py-2 text-[11px] tracking-widest uppercase font-semibold hover:bg-black hover:text-white transition-all duration-200"
+            >
+              <span className="text-base leading-none">+</span>
+              <span>Upload HTML</span>
+            </button>
+            <button
+              onClick={() => pdfInputRef.current?.click()}
               className="group inline-flex items-center gap-2.5 border border-black text-black px-5 py-2 text-[11px] tracking-widest uppercase font-semibold hover:bg-black hover:text-white transition-all duration-200"
             >
               <span className="text-base leading-none">+</span>
               <span>Upload PDF</span>
             </button>
           </div>
-          <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleFileSelect} className="hidden" />
+          <input ref={htmlInputRef} type="file" accept=".zip,.html,.htm" onChange={handleHtmlSelect} className="hidden" />
+          <input ref={pdfInputRef} type="file" accept=".pdf" onChange={handlePdfSelect} className="hidden" />
         </div>
 
         {/* ── Body ── */}
-        {!pdfFile ? (
+        {!hasLoadedDocument ? (
           <div className="flex-1 bg-white" />
         ) : (
           <div className="flex-1 flex overflow-hidden">
 
-            {/* ── PDF Viewer ── */}
+            {/* ── Document Viewer ── */}
             <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-gray-50">
               <div className="flex-1 min-h-0 flex items-center gap-4 px-6 overflow-hidden">
                 <button
@@ -416,14 +487,23 @@ export default function ProductCatalogsPage() {
                     Page {currentPage} of {totalPages}
                   </span>
                   <div className="flex-1 w-full overflow-hidden">
-                    <PDFViewer
-                      pdfUrl={pdfUrl}
-                      currentPage={currentPage}
-                      onTotalPagesChange={handleTotalPagesLoaded}
-                      fitToContainer={true}
-                      pageTitle={pageTitles[currentPage - 1] ?? `Title ${currentPage}`}
-                      onInternalLinkClick={(pageNum) => setCurrentPage(pageNum)}
-                    />
+                    {sourceType === 'pdf' ? (
+                      <PDFViewer
+                        pdfUrl={pdfUrl}
+                        currentPage={currentPage}
+                        onTotalPagesChange={handleTotalPagesLoaded}
+                        fitToContainer={true}
+                        pageTitle={pageTitles[currentPage - 1] ?? `Title ${currentPage}`}
+                        onInternalLinkClick={(pageNum) => setCurrentPage(pageNum)}
+                      />
+                    ) : htmlCatalog ? (
+                      <HTMLPageViewer
+                        page={htmlCatalog.pages[currentPage - 1]}
+                        pageTitle={pageTitles[currentPage - 1] ?? htmlCatalog.pages[currentPage - 1]?.title}
+                        renderMode="isolated"
+                        backgroundColor={themeInputs.backgroundColor || undefined}
+                      />
+                    ) : null}
                   </div>
                 </div>
 
@@ -454,12 +534,23 @@ export default function ProductCatalogsPage() {
                       {isActive && <div className="absolute left-0 top-0 h-full w-[3px] bg-black z-10" />}
                       <div className="px-3 py-3">
                         <div className={`w-full border overflow-hidden mb-2 ${isActive ? 'border-gray-300' : 'border-gray-200'}`}>
-                          <PDFThumbnail
-                            pdfUrl={pdfUrl} pageNum={pageNum} isActive={isActive}
-                            title={pageTitles[pageNum - 1] ?? `Title ${pageNum}`}
-                            onTitleChange={v => handlePageTitleChange(pageNum, v)}
-                            onClick={() => setCurrentPage(pageNum)}
-                          />
+                          {sourceType === 'pdf' ? (
+                            <PDFThumbnail
+                              pdfUrl={pdfUrl} pageNum={pageNum} isActive={isActive}
+                              title={pageTitles[pageNum - 1] ?? `Title ${pageNum}`}
+                              onTitleChange={v => handlePageTitleChange(pageNum, v)}
+                              onClick={() => setCurrentPage(pageNum)}
+                            />
+                          ) : htmlCatalog ? (
+                            <HTMLThumbnail
+                              page={htmlCatalog.pages[pageNum - 1]}
+                              pageNum={pageNum}
+                              isActive={isActive}
+                              title={pageTitles[pageNum - 1] ?? `Title ${pageNum}`}
+                              onTitleChange={v => handlePageTitleChange(pageNum, v)}
+                              onClick={() => setCurrentPage(pageNum)}
+                            />
+                          ) : null}
                         </div>
                         <div className="flex items-center gap-1">
                           <span className={`text-[10px] font-mono flex-shrink-0 ${isActive ? 'text-black' : 'text-gray-400'}`}>
@@ -557,7 +648,11 @@ export default function ProductCatalogsPage() {
                 <div className="sticky bottom-0 z-10 px-4 py-3 border-t border-gray-100 bg-gray-100">
                   <div className="grid grid-cols-2 gap-2">
                     <button
-                      onClick={() => { if (canPublish) { persistHierarchyData(); window.open(`/services/product-catalogs/preview/${documentId}`, '_blank'); } }}
+                      onClick={async () => {
+                        if (!canPublish) return;
+                        await persistHierarchyData();
+                        window.open(`/services/product-catalogs/preview/${documentId}`, '_blank');
+                      }}
                       disabled={!canPublish}
                       className={`flex items-center justify-center gap-2 py-2.5 text-[10px] tracking-[0.15em] uppercase font-semibold border transition-all duration-150 ${canPublish ? 'border-black text-black hover:bg-black hover:text-white' : 'border-gray-200 text-gray-300 cursor-not-allowed'}`}
                     >
@@ -620,7 +715,7 @@ export default function ProductCatalogsPage() {
                       <rect x="4" y="4" width="24" height="24" rx="1" />
                       <path d="M4 12h24M12 12v16" strokeLinecap="round" />
                     </svg>
-                    <p className="text-[11px] text-gray-400 leading-relaxed">Upload a PDF to build your document structure</p>
+                    <p className="text-[11px] text-gray-400 leading-relaxed">Upload a PDF or HTML export to build your document structure</p>
                   </div>
                 )}
               </div>

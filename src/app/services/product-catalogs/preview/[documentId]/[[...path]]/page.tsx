@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useHierarchy } from '@/lib/HierarchyContext';
+import type { ParsedHtmlCatalog } from '@/lib/indesign-parser';
 
 const PDFViewer = dynamic(() => import('@/components/PDFViewer').then(mod => mod.PDFViewer), { ssr: false });
+const HTMLPageViewer = dynamic(() => import('@/components/HTMLPageViewer').then(mod => mod.HTMLPageViewer), { ssr: false });
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const IconShare = ({ color }: { color: string }) => (
@@ -117,7 +119,9 @@ function buildFlatNavItems(
 // ── PageStackItem ─────────────────────────────────────────────────────────────
 interface PageStackItemProps {
   pageNum: number;
+  sourceType: 'pdf' | 'html' | null;
   pdfUrl: string | null;
+  htmlCatalog: ParsedHtmlCatalog | null;
   pageTitles: string[];
   primaryColor: string;
   componentColor: string;
@@ -130,7 +134,7 @@ interface PageStackItemProps {
   onInternalLinkClick?: (n: number) => void;
 }
 
-function PageStackItem({ pageNum, pdfUrl, pageTitles, primaryColor, componentColor, pageHeightsRef, pdfContainerRef, onInternalLinkClick }: PageStackItemProps) {
+function PageStackItem({ pageNum, sourceType, pdfUrl, htmlCatalog, pageTitles, primaryColor, componentColor, pageHeightsRef, pdfContainerRef, onInternalLinkClick }: PageStackItemProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const ro = new ResizeObserver(() => {
@@ -150,14 +154,25 @@ function PageStackItem({ pageNum, pdfUrl, pageTitles, primaryColor, componentCol
   return (
     <div ref={containerRef} className="mb-10 w-full">
       <div className="w-full" style={{ boxShadow: '0 2px 16px 0 rgba(0,0,0,0.08)' }}>
-        <PDFViewer
-          pdfUrl={pdfUrl}
-          currentPage={pageNum}
-          pageTitle={pageTitles[pageNum - 1] || `Page ${pageNum}`}
-          onTotalPagesChange={() => {}}
-          onInternalLinkClick={onInternalLinkClick}
-          fitToContainer={false}
-        />
+        {sourceType === 'pdf' ? (
+          <PDFViewer
+            pdfUrl={pdfUrl}
+            currentPage={pageNum}
+            pageTitle={pageTitles[pageNum - 1] || `Page ${pageNum}`}
+            onTotalPagesChange={() => {}}
+            onInternalLinkClick={onInternalLinkClick}
+            fitToContainer={false}
+          />
+        ) : htmlCatalog ? (
+          <div className="w-full bg-gray-50">
+            <HTMLPageViewer
+              page={htmlCatalog.pages[pageNum - 1]}
+              pageTitle={pageTitles[pageNum - 1] || htmlCatalog.pages[pageNum - 1]?.title}
+              renderMode="dom"
+              fillContainer={true}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -168,7 +183,7 @@ export default function PreviewPage() {
   const params = useParams();
   const pathname = usePathname();
   const router = useRouter();
-  const { pdfUrl, pageAssignments, groupMetadata, pageTitles, pdfFileName, docName, themeColors } = useHierarchy();
+  const { sourceType, pdfUrl, htmlCatalog, pageAssignments, groupMetadata, pageTitles, pdfFileName, sourceFileName, docName, themeColors } = useHierarchy();
 
   const [currentPageNum, setCurrentPageNum] = useState(1);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['root']));
@@ -367,7 +382,7 @@ export default function PreviewPage() {
   };
 
   const handleDownload = () => {
-    if (!pdfUrl) return;
+    if (sourceType !== 'pdf' || !pdfUrl) return;
     const a = document.createElement('a'); a.href = pdfUrl; a.download = pdfFileName || 'catalog.pdf';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
@@ -457,7 +472,7 @@ export default function PreviewPage() {
   }
 
   const documentId = (params.documentId as string) || '';
-  const catalogName = docName || (pdfFileName ? pdfFileName.replace(/\.pdf$/i, '') : 'Catalog');
+  const catalogName = docName || (sourceFileName ? sourceFileName.replace(/\.(pdf|zip|html?)$/i, '') : 'Catalog');
   const currentTitle = pageTitles[currentPageNum - 1] || `Page ${currentPageNum}`;
 
   return (
@@ -499,11 +514,12 @@ export default function PreviewPage() {
             </button>
             <button
               onClick={handleDownload}
+              disabled={sourceType !== 'pdf'}
               className="flex items-center gap-1.5 px-1 py-1 text-base md:text-[1.05rem] font-medium transition-colors duration-150 rounded hover:opacity-80"
-              style={{ color: '#0070B8' }}
+              style={{ color: sourceType === 'pdf' ? '#0070B8' : `${primaryColor}55` }}
             >
-              <IconDownload color="#0070B8" />
-              <span className="hidden sm:inline">Download PDF</span>
+              <IconDownload color={sourceType === 'pdf' ? '#0070B8' : `${primaryColor}`} />
+              <span className="hidden sm:inline">{sourceType === 'pdf' ? 'Download PDF' : 'HTML loaded locally'}</span>
             </button>
           </div>
         </div>
@@ -626,7 +642,9 @@ export default function PreviewPage() {
                     <PageStackItem
                       key={`page-${pageNum}`}
                       pageNum={pageNum}
+                      sourceType={sourceType}
                       pdfUrl={pdfUrl}
+                      htmlCatalog={htmlCatalog}
                       pageTitles={pageTitles}
                       primaryColor={primaryColor}
                       componentColor={componentColor}
@@ -648,17 +666,26 @@ export default function PreviewPage() {
               </div>
             ) : pagesInSelectedPath.length === 1 ? (
               <div className="h-full overflow-hidden">
-                <PDFViewer
-                  pdfUrl={pdfUrl}
-                  currentPage={pagesInSelectedPath[0]}
-                  pageTitle={pageTitles[pagesInSelectedPath[0] - 1] || `Page ${pagesInSelectedPath[0]}`}
-                  onTotalPagesChange={() => {}}
-                  onInternalLinkClick={n => {
-                    setCurrentPageNum(n);
-                    navigateToPreviewUrl(buildPreviewUrl(documentId, selectedPath, n, pageTitles));
-                  }}
-                  fitToContainer={false}
-                />
+                {sourceType === 'pdf' ? (
+                  <PDFViewer
+                    pdfUrl={pdfUrl}
+                    currentPage={pagesInSelectedPath[0]}
+                    pageTitle={pageTitles[pagesInSelectedPath[0] - 1] || `Page ${pagesInSelectedPath[0]}`}
+                    onTotalPagesChange={() => {}}
+                    onInternalLinkClick={n => {
+                      setCurrentPageNum(n);
+                      navigateToPreviewUrl(buildPreviewUrl(documentId, selectedPath, n, pageTitles));
+                    }}
+                    fitToContainer={false}
+                  />
+                ) : htmlCatalog ? (
+                  <HTMLPageViewer
+                    page={htmlCatalog.pages[pagesInSelectedPath[0] - 1]}
+                    pageTitle={pageTitles[pagesInSelectedPath[0] - 1] || htmlCatalog.pages[pagesInSelectedPath[0] - 1]?.title}
+                    renderMode="dom"
+                    fillContainer={true}
+                  />
+                ) : null}
               </div>
             ) : null}
           </div>
