@@ -5,7 +5,7 @@ const sections = [
     num: '01',
     title: 'Getting Started',
     slug: 'getting-started',
-    description: 'Set up your WeaveDocs account and upload your first PDF in under a minute.',
+    description: 'Set up your SECat account and upload your first PDF in under a minute.',
     articles: [
       { title: 'Creating your account', time: '2 min' },
       { title: 'Uploading your first PDF', time: '3 min' },
@@ -56,16 +56,16 @@ export default function DocsPage() {
         <div className="max-w-6xl mx-auto px-6 py-16 md:py-24 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
           <div>
             <p className="text-[11px] tracking-[0.25em] uppercase text-gray-400 mb-4">
-              WeaveDocs / Documentation
+              SECat / Documentation
             </p>
             <h1 className="font-['Playfair_Display',serif] text-[clamp(2.8rem,6vw,5rem)] font-black leading-[0.95] tracking-tight text-black">
-              Docs &amp;<br />
+              Cat &amp;<br />
               <span className="italic font-normal">Guides</span>
             </h1>
           </div>
           <div className="flex flex-col gap-4 md:items-end">
             <p className="text-sm text-gray-400 max-w-xs leading-relaxed md:text-right">
-              Everything you need to get the most out of WeaveDocs.
+              Everything you need to get the most out of SECat.
             </p>
             {/* Search bar */}
             <div className="flex items-center border border-black w-full md:w-72">
@@ -164,7 +164,7 @@ export default function DocsPage() {
           Can't find what you're looking for?
         </span>
         <a
-          href="mailto:support@weavedocs.com"
+          href="mailto:support@secat.com"
           className="text-[11px] tracking-[0.2em] uppercase font-semibold text-black hover:text-gray-500 transition-colors"
         >
           Contact support &rarr;

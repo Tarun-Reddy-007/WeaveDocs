@@ -3,7 +3,7 @@ export default function PrivacyPage() {
     {
       num: '01',
       title: 'Introduction',
-      body: "At WeaveDocs, we're committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our platform.",
+      body: "At SECat, we're committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our platform.",
     },
     {
       num: '02',
@@ -13,7 +13,7 @@ export default function PrivacyPage() {
     {
       num: '03',
       title: 'How We Use Your Data',
-      body: 'Your data is used solely to operate and improve the WeaveDocs service. We do not sell or share your personal information with third parties for marketing purposes.',
+      body: 'Your data is used solely to operate and improve the SECat service. We do not sell or share your personal information with third parties for marketing purposes.',
     },
     {
       num: '04',
@@ -23,7 +23,7 @@ export default function PrivacyPage() {
     {
       num: '05',
       title: 'Contact Us',
-      body: 'If you have questions about this Privacy Policy, please contact us at privacy@weavedocs.com. We aim to respond within 48 hours.',
+      body: 'If you have questions about this Privacy Policy, please contact us at privacy@secat.com. We aim to respond within 48 hours.',
     },
   ];
 
@@ -34,7 +34,7 @@ export default function PrivacyPage() {
         <div className="max-w-6xl mx-auto px-6 py-16 md:py-24 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
           <div>
             <p className="text-[11px] tracking-[0.25em] uppercase text-gray-400 mb-4">
-              WeaveDocs / Legal
+              SECat / Legal
             </p>
             <h1 className="font-['Playfair_Display',serif] text-[clamp(2.8rem,6vw,5rem)] font-black leading-[0.95] tracking-tight text-black">
               Privacy<br />
@@ -76,13 +76,13 @@ export default function PrivacyPage() {
       {/* Footer note */}
       <div className="border-t border-black max-w-6xl mx-auto px-6 py-6 mt-8 flex items-center justify-between">
         <span className="text-[11px] tracking-[0.2em] uppercase text-gray-400">
-          WeaveDocs Legal
+          SECat Legal
         </span>
         <a
-          href="mailto:privacy@weavedocs.com"
+          href="mailto:privacy@secat.com"
           className="text-[11px] tracking-[0.2em] uppercase font-semibold text-black hover:text-gray-500 transition-colors"
         >
-          privacy@weavedocs.com &rarr;
+          privacy@secat.com &rarr;
         </a>
       </div>
     </main>

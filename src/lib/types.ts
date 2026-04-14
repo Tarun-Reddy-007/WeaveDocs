@@ -1,5 +1,5 @@
 /**
- * Type definitions for WeaveDocs
+ * Type definitions for SECat
  */
 
 export interface User {

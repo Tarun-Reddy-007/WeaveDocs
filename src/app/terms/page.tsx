@@ -3,13 +3,13 @@ export default function TermsPage() {
     {
       num: '01',
       title: 'Agreement',
-      body: 'By accessing and using WeaveDocs, you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree, please discontinue use of the platform immediately.',
+      body: 'By accessing and using SECat, you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree, please discontinue use of the platform immediately.',
       list: null,
     },
     {
       num: '02',
       title: 'Use License',
-      body: 'Permission is granted to temporarily access the materials on WeaveDocs for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title. Under this license you may not:',
+      body: 'Permission is granted to temporarily access the materials on SECat for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title. Under this license you may not:',
       list: [
         'Modify or copy the materials',
         'Use the materials for any commercial purpose',
@@ -21,13 +21,13 @@ export default function TermsPage() {
     {
       num: '03',
       title: 'Disclaimer',
-      body: "The materials on WeaveDocs are provided on an 'as is' basis. WeaveDocs makes no warranties, expressed or implied, and hereby disclaims all other warranties including implied warranties of merchantability, fitness for a particular purpose, or non-infringement of intellectual property.",
+      body: "The materials on SECat are provided on an 'as is' basis. SECat makes no warranties, expressed or implied, and hereby disclaims all other warranties including implied warranties of merchantability, fitness for a particular purpose, or non-infringement of intellectual property.",
       list: null,
     },
     {
       num: '04',
       title: 'Limitations',
-      body: 'In no event shall WeaveDocs or its suppliers be liable for any damages arising out of the use or inability to use the materials on the platform, even if WeaveDocs or an authorised representative has been notified of the possibility of such damage.',
+      body: 'In no event shall SECat or its suppliers be liable for any damages arising out of the use or inability to use the materials on the platform, even if SECat or an authorised representative has been notified of the possibility of such damage.',
       list: null,
     },
     {
@@ -41,7 +41,7 @@ export default function TermsPage() {
       title: 'Contact Us',
       body: 'If you have any questions about these Terms of Service, please reach out to our legal team directly.',
       list: null,
-      contact: 'legal@weavedocs.com',
+      contact: 'legal@secat.com',
     },
   ];
 
@@ -53,7 +53,7 @@ export default function TermsPage() {
         <div className="max-w-6xl mx-auto px-6 py-16 md:py-24 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
           <div>
             <p className="text-[11px] tracking-[0.25em] uppercase text-gray-400 mb-4">
-              WeaveDocs / Legal
+              SECat / Legal
             </p>
             <h1 className="font-['Playfair_Display',serif] text-[clamp(2.8rem,6vw,5rem)] font-black leading-[0.95] tracking-tight text-black">
               Terms of<br />
@@ -122,13 +122,13 @@ export default function TermsPage() {
       {/* Footer strip */}
       <div className="border-t border-black max-w-6xl mx-auto px-6 py-6 mt-8 flex items-center justify-between">
         <span className="text-[11px] tracking-[0.2em] uppercase text-gray-400">
-          WeaveDocs Legal
+          SECat Legal
         </span>
         <a
-          href="mailto:legal@weavedocs.com"
+          href="mailto:legal@secat.com"
           className="text-[11px] tracking-[0.2em] uppercase font-semibold text-black hover:text-gray-500 transition-colors"
         >
-          legal@weavedocs.com &rarr;
+          legal@secat.com &rarr;
         </a>
       </div>
 

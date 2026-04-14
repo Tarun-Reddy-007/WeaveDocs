@@ -72,7 +72,7 @@ export function Sidebar({ items, title }: SidebarProps) {
       {/* Bottom strip */}
       <div className="border-t border-gray-200 px-6 py-4">
         <p className="text-[10px] tracking-[0.2em] uppercase text-gray-300">
-          WeaveDocs
+          SECat
         </p>
       </div>
 

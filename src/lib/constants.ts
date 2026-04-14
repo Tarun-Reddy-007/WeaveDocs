@@ -2,7 +2,7 @@
  * Application constants
  */
 
-export const APP_NAME = 'WeaveDocs';
+export const APP_NAME = 'SECat';
 export const APP_TAGLINE = 'Turn static documents into seamless web experiences';
 
 export const ROUTES = {
@@ -29,13 +29,17 @@ export const SPACING = {
 } as const;
 
 export const COLORS = {
-  BACKGROUND: '#0f172a', // neutral-950
-  FOREGROUND: '#e5e7eb', // neutral-200
-  BORDER: '#1f2937', // neutral-800
-  TEXT_PRIMARY: '#f5f5f5', // neutral-100
-  TEXT_SECONDARY: '#d1d5db', // neutral-300
-  TEXT_TERTIARY: '#9ca3af', // neutral-400
+  // Defaults: text - black, component - #3DCD58, background - white
+  BACKGROUND: '#ffffff', // white
+  COMPONENT: '#3DCD58', // primary component color
+  TEXT_PRIMARY: '#000000', // black
+  BORDER: '#e5e7eb', // light border
+  TEXT_SECONDARY: '#6b7280', // gray-500
 } as const;
 
 export const SUPPORTED_FILE_TYPES = ['pdf', 'docx', 'doc', 'txt', 'pptx', 'xlsx'];
 export const MAX_FILE_SIZE_MB = 50; // 50MB max file size
+
+export const FONT = {
+  DEFAULT: 'Special Gothic', // default font style
+} as const;

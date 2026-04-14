@@ -506,7 +506,10 @@ export default function PreviewPage() {
       className="flex flex-col h-screen overflow-hidden"
       style={{ backgroundColor, color: primaryColor, fontFamily: fontStyle }}
     >
-
+      {/* ── Logo wrapper ── */}
+      <div className="flex-shrink-0 px-5 md:px-12 lg:px-16 py-3 flex items-center" style={{ backgroundColor }}>
+        <img src="/selogo.png" alt="SE Logo" className="h-8 md:h-10" />
+      </div>
       {/* ── Top accent bar ── */}
       <div className="flex-shrink-0 h-1" style={{ backgroundColor: componentColor }} />
 
@@ -605,12 +608,6 @@ export default function PreviewPage() {
           style={{ borderColor: `${primaryColor}15`, backgroundColor }}
         >
           <div
-            className="flex-shrink-0 h-10 flex items-center pl-10 lg:pl-11 pr-5 border-b"
-            style={{ borderColor: `${primaryColor}10` }}
-          >
-            <span className="text-xs tracking-widest uppercase font-semibold" style={{ color: primaryColor, opacity: 0.35 }}>Contents</span>
-          </div>
-          <div
             ref={desktopContentsRef}
             onScroll={() => {
               if (desktopContentsRef.current) {
@@ -629,8 +626,8 @@ export default function PreviewPage() {
 
           {/* Desktop: slim title + page counter strip */}
           <div
-            className="hidden md:flex flex-shrink-0 h-11 items-center justify-between px-8 lg:px-12 border-b"
-            style={{ borderColor: `${primaryColor}10` }}
+            className="hidden md:flex flex-shrink-0 h-11 items-center justify-between px-8 lg:px-12"
+            style={{}}
           >
             <div className="flex items-center gap-2 min-w-0 flex-1">
               {selectedPath !== 'root' && (
@@ -687,7 +684,7 @@ export default function PreviewPage() {
                 className="h-full overflow-y-auto pt-5"
                 style={{ scrollbarWidth: 'thin', scrollbarColor: '#9ca3af transparent' }}
               >
-                <div className="flex flex-col w-full pb-4">
+                <div className="flex flex-col w-full">
                   {pagesInSelectedPath.map(pageNum => (
                     <PageStackItem
                       key={`page-${pageNum}`}

@@ -10,7 +10,7 @@ export default function PreviewLayout({
       <head>
         <meta charSet="utf-8" />
       </head>
-      <body className="flex flex-col min-h-screen bg-neutral-950">
+      <body className="flex flex-col min-h-screen bg-neutral-950 overflow-hidden">
         <Providers>
           {children}
         </Providers>

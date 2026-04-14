@@ -24,7 +24,7 @@ export default function ServicesPage() {
         <div className="max-w-6xl mx-auto px-6 py-16 md:py-24 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
           <div>
             <p className="text-[11px] tracking-[0.25em] uppercase text-gray-400 mb-4">
-              WeaveDocs / Services
+              SECat / Services
             </p>
             <h1 className="font-['Playfair_Display',serif] text-[clamp(2.1rem,4.4vw,4rem)] font-black leading-[0.95] tracking-tight text-black">
               Our<br />

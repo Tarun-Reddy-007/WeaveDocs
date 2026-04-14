@@ -19,7 +19,7 @@ export default function LoginPage() {
       {/* Left panel — branding */}
       <div className="hidden lg:flex w-[45%] border-r border-black flex-col justify-between p-12 bg-black">
         <Link href="/" className="font-['Playfair_Display',serif] text-xl font-black text-white leading-none">
-          Weave<span className="italic font-normal">Docs</span>
+          SE<span className="italic font-normal">Cat</span>
         </Link>
 
         <div>
@@ -154,7 +154,7 @@ export default function LoginPage() {
         {/* Bottom: legal */}
         <div className="flex items-center justify-between mt-12">
           <span className="text-[10px] tracking-[0.15em] uppercase text-gray-300">
-            © {new Date().getFullYear()} WeaveDocs
+            © {new Date().getFullYear()} SECat
           </span>
           <div className="flex gap-4">
             {['Privacy', 'Terms'].map(l => (

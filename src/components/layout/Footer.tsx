@@ -19,7 +19,7 @@ export function Footer() {
           {/* Brand */}
           <div className="flex flex-col gap-3">
             <Link href="/" className="font-['Playfair_Display',serif] text-xl font-black text-black leading-none">
-              Weave<span className="italic font-normal">Docs</span>
+              SE<span className="italic font-normal">Cat</span>
             </Link>
             <p className="text-[12px] text-gray-400 leading-relaxed max-w-[16rem]">
               Turn static documents into seamless, searchable web experiences.
@@ -60,7 +60,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="py-5 flex flex-col md:flex-row items-center justify-between gap-3">
           <span className="text-[11px] tracking-[0.2em] uppercase text-gray-400">
-            © {currentYear} WeaveDocs. All rights reserved.
+            © {currentYear} SECat. All rights reserved.
           </span>
           <span className="text-[11px] tracking-[0.2em] uppercase text-gray-400">
             Built for modern teams

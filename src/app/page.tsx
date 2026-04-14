@@ -23,23 +23,23 @@ export default function Home() {
             </motion.div>
 
             <div className="font-['Playfair_Display',serif] text-[clamp(3rem,7vw,6rem)] font-black leading-[0.95] tracking-tight text-black mb-8 overflow-hidden">
-              {/* "Weave" — slides up */}
+              {/* "SE" — slides up */}
               <motion.div
                 initial={{ y: '110%', opacity: 0 }}
                 animate={{ y: '0%', opacity: 1 }}
                 transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
               >
-                Weave
+                SE
               </motion.div>
 
-              {/* "Docs" — slides up with slight delay, italic */}
+              {/* "Cat" — slides up with slight delay, italic */}
               <motion.div
                 className="italic font-normal"
                 initial={{ y: '110%', opacity: 0 }}
                 animate={{ y: '0%', opacity: 1 }}
                 transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
               >
-                Docs
+                Cat
               </motion.div>
             </div>
 

@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { Sidebar } from '@/components/layout/sidebar/Sidebar';
 import { useHierarchy } from '@/lib/HierarchyContext';
+import { COLORS, FONT } from '@/lib/constants';
 import { parseHtmlCatalogUpload } from '@/lib/indesign-parser';
 import type { ParsedHtmlCatalog } from '@/lib/indesign-parser';
 
@@ -85,11 +86,12 @@ const IconPublish = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 
 const FONT_OPTIONS = [
+  FONT.DEFAULT,
   'Arial', 'Arial Rounded MT Bold', 'Comic Sans MS', 'Courier New',
   'Garamond', 'Georgia', 'Impact', 'Lucida Console',
   'Palatino Linotype', 'Segoe UI', 'Tahoma', 'Times New Roman',
   'Trebuchet MS', 'Verdana',
-];
+].filter((font, index, allFonts) => allFonts.indexOf(font) === index);
 
 export default function ProductCatalogsPage() {
   const { setHierarchyData } = useHierarchy();
@@ -111,8 +113,8 @@ export default function ProductCatalogsPage() {
   const [hierarchyReady, setHierarchyReady] = useState(false);
   const [documentId, setDocumentId] = useState('');
   const [docName, setDocName] = useState('');
-  const [fontStyle, setFontStyle] = useState('Arial');
-  const [themeInputs, setThemeInputs] = useState({ primaryColor: '', componentColor: '', backgroundColor: '' });
+  const [fontStyle, setFontStyle] = useState<string>(FONT.DEFAULT);
+  const [themeInputs, setThemeInputs] = useState({ primaryColor: COLORS.TEXT_PRIMARY, componentColor: COLORS.COMPONENT, backgroundColor: COLORS.BACKGROUND });
   const [themeErrors, setThemeErrors] = useState<Record<string, string>>({});
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const htmlInputRef = useRef<HTMLInputElement>(null);
@@ -154,8 +156,8 @@ export default function ProductCatalogsPage() {
     setHierarchyReady(false);
     setDocumentId('');
     setDocName('');
-    setFontStyle('Arial');
-    setThemeInputs({ primaryColor: '', componentColor: '', backgroundColor: '' });
+    setFontStyle(FONT.DEFAULT);
+    setThemeInputs({ primaryColor: COLORS.TEXT_PRIMARY, componentColor: COLORS.COMPONENT, backgroundColor: COLORS.BACKGROUND });
     setThemeErrors({});
   };
 

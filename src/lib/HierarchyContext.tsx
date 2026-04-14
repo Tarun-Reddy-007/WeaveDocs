@@ -52,7 +52,7 @@ interface HierarchyContextType {
 const HierarchyContext = createContext<HierarchyContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'hierarchy_data';
-const DB_NAME = 'weavedocs-hierarchy';
+const DB_NAME = 'secat-hierarchy';
 const DB_VERSION = 1;
 const STORE_NAME = 'catalogs';
 const HTML_CATALOG_KEY = `${STORAGE_KEY}:htmlCatalog`;

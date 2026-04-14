@@ -9,8 +9,8 @@ import { cn } from "@/lib/utils";
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: 'WeaveDocs - Turn static documents into seamless web experiences',
-  description: 'WeaveDocs: Transform your static documents into interactive web experiences',
+  title: 'SECat - Turn static documents into seamless web experiences',
+  description: 'SECat: Transform your static documents into interactive web experiences',
   viewport: {
     width: 'device-width',
     initialScale: 1,

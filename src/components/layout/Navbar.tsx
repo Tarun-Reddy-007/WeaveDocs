@@ -33,8 +33,8 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
             <span className="font-['Playfair_Display',serif] text-xl font-black text-black tracking-tight leading-none">
-              Weave
-              <span className="italic font-normal">Docs</span>
+              SE
+              <span className="italic font-normal">Cat</span>
             </span>
           </Link>
 
@@ -44,7 +44,7 @@ export function Navbar() {
               Services
             </NavLink>
             <NavLink href="/docs" active={pathname === '/docs'}>
-              Docs
+              Cat
             </NavLink>
 
             <div className="w-px h-4 bg-gray-300" />
@@ -97,7 +97,7 @@ export function Navbar() {
         <div className="w-full px-3 sm:px-6 py-6 flex flex-col gap-5">
           {[
             { href: '/services', label: 'Services' },
-            { href: '/docs', label: 'Docs' },
+            { href: '/docs', label: 'Cat' },
           ].map(({ href, label }) => (
             <Link
               key={href}
